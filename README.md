@@ -62,6 +62,45 @@ swarm run --routing lp \
   --query "Summarize the previous two answers."
 ```
 
+## Lambda parameters and optimization
+
+LP routing solves a linear program to assign each subtask to an agent (model). Two trade-off parameters control the objective:
+
+| Parameter | Default | Effect |
+|-----------|---------|--------|
+| **λ_token** | 0.5 | Weight on token cost. Higher → prefer cheaper / shorter outputs; lower → favor estimated quality more. |
+| **λ_switch** | 0.2 | Weight on model switch cost. Higher → prefer reusing already-loaded models; lower → allow more model swaps for better fit. |
+
+### Mathematical formulation
+
+**Variables**
+
+- \(x_{im} \in [0,1]\) — assignment: agent \(i\) handles subtask \(m\)
+- \(y_i \in [0,1]\) — activation: agent \(i\) is loaded
+
+**Parameters**
+
+- \(P_{im}\) — estimated quality (performance) of agent \(i\) on subtask \(m\), in \([0,1]\)
+- \(C^{\text{tok}}_{im}\) — normalized token cost = `(cost_per_token × estimated_tokens) / token_scale`
+- \(C^{\text{sw}}_i\) — switch cost for agent \(i\): 0 if already loaded, else `load_time_ms / (switch_t_scale_ms × 3)`
+- \(v_i\) — VRAM (GB) for agent \(i\)
+- \(G\) — GPU VRAM capacity (GB)
+
+**Objective** (maximize):
+
+\[
+\sum_{i,m} x_{im}\bigl(P_{im} - \lambda_{\text{token}}\, C^{\text{tok}}_{im}\bigr)
+\;-\; \lambda_{\text{switch}} \sum_i C^{\text{sw}}_i\, y_i
+\]
+
+**Constraints**
+
+- \(\sum_i x_{im} = 1\) for each \(m\) — each subtask assigned to exactly one agent
+- \(x_{im} \leq y_i\) for all \(i,m\) — can assign to agent only if it is active
+- \(\sum_i v_i\, y_i \leq G\) — VRAM budget
+
+The LP chooses which models to load and how to assign subtasks so that quality minus token and switch costs is maximized, subject to VRAM.
+
 ## Benchmarks
 
 Two built-in benchmarks (deterministic, small):
