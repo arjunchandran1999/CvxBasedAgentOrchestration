@@ -1,0 +1,63 @@
+[
+  {
+    "name": "gemma2:2b",
+    "cost_per_token": 0.4,
+    "max_ctx": 8192,
+    "capabilities": {
+      "code": 0.45,
+      "reasoning": 0.5,
+      "math": 0.45,
+      "creative": 0.55,
+      "extraction": 0.55,
+      "summarize": 0.55
+    },
+    "vram_gb": 2.0,
+    "load_time_ms": 600
+  },
+  {
+    "name": "qwen2.5-coder:7b",
+    "cost_per_token": 1.2,
+    "max_ctx": 32768,
+    "capabilities": {
+      "code": 0.85,
+      "reasoning": 0.65,
+      "math": 0.65,
+      "creative": 0.55,
+      "extraction": 0.6,
+      "summarize": 0.6
+    },
+    "vram_gb": 6.5,
+    "load_time_ms": 1200
+  },
+  {
+    "name": "llama3.1:8b",
+    "cost_per_token": 1.4,
+    "max_ctx": 8192,
+    "capabilities": {
+      "code": 0.7,
+      "reasoning": 0.8,
+      "math": 0.72,
+      "creative": 0.7,
+      "extraction": 0.7,
+      "summarize": 0.75
+    },
+    "vram_gb": 8.0,
+    "load_time_ms": 1600
+  },
+  {
+    "name": "phi4:14b",
+    "cost_per_token": 2.0,
+    "max_ctx": 8192,
+    "capabilities": {
+      "code": 0.75,
+      "reasoning": 0.88,
+      "math": 0.9,
+      "creative": 0.55,
+      "extraction": 0.72,
+      "summarize": 0.7
+    },
+    "vram_gb": 12.5,
+    "load_time_ms": 2400
+  }
+]
+

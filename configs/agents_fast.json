@@ -1,0 +1,48 @@
+[
+  {
+    "name": "tinyllama:latest",
+    "cost_per_token": 0.25,
+    "max_ctx": 4096,
+    "capabilities": {
+      "code": 0.35,
+      "reasoning": 0.45,
+      "math": 0.35,
+      "creative": 0.5,
+      "extraction": 0.55,
+      "summarize": 0.55
+    },
+    "vram_gb": 1.2,
+    "load_time_ms": 450
+  },
+  {
+    "name": "gemma2:2b",
+    "cost_per_token": 0.35,
+    "max_ctx": 8192,
+    "capabilities": {
+      "code": 0.45,
+      "reasoning": 0.5,
+      "math": 0.45,
+      "creative": 0.55,
+      "extraction": 0.6,
+      "summarize": 0.6
+    },
+    "vram_gb": 2.0,
+    "load_time_ms": 600
+  },
+  {
+    "name": "phi3:mini",
+    "cost_per_token": 0.6,
+    "max_ctx": 8192,
+    "capabilities": {
+      "code": 0.5,
+      "reasoning": 0.65,
+      "math": 0.65,
+      "creative": 0.5,
+      "extraction": 0.6,
+      "summarize": 0.6
+    },
+    "vram_gb": 3.0,
+    "load_time_ms": 800
+  }
+]
+

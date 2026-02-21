@@ -1,0 +1,60 @@
+.venv/
+
+# Python caches / build artifacts
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter / editor
+.ipynb_checkpoints/
+.DS_Store
+
+# Local secrets
+.env
+.env.*
+
+# Generated runs / telemetry (project defaults)
+runs/
+bench_runs/
+experiments/
+*.log
+*.jsonl
+
+# Common data / model artifact formats (avoid committing large files)
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.xlsx
+*.xls
+*.db
+*.sqlite
+*.sqlite3
+*.pkl
+*.pickle
+*.joblib
+*.npy
+*.npz
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z

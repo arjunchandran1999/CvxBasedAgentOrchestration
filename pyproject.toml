@@ -1,0 +1,30 @@
+[project]
+name = "ollama-swarm-router"
+version = "0.1.0"
+description = "Agentic LLM swarm orchestrator with optional CVXPY routing (GPU VRAM + switching-aware)."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "httpx>=0.27.0",
+  "pydantic>=2.6.0",
+  "rich>=13.7.0",
+  "numpy>=1.26.0",
+  "cvxpy>=1.4.0",
+  "osqp>=0.6.5",
+  "scs>=3.2.6",
+  "nvidia-ml-py>=13.590.0",
+  "datasets>=2.19.0",
+  "evaluate>=0.4.1",
+  "rouge-score>=0.1.2",
+]
+
+[project.scripts]
+swarm = "swarm.main:main"
+
+[build-system]
+requires = ["hatchling>=1.22.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/swarm"]
+
