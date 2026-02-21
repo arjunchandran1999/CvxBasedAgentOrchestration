@@ -36,7 +36,10 @@ class SwarmOptimizer:
         loaded_models: set[str],
     ) -> RoutingResult:
         if not subtasks:
-            return RoutingResult(assignments=[], active_models=[], vram_used_gb=0.0, routing_source="lp")
+            return RoutingResult(
+                assignments=[], active_models=[], vram_used_gb=0.0, routing_source="lp",
+                loaded_models=sorted(loaded_models),
+            )
 
         estimator.ensure_priors(agents)
 
@@ -137,12 +140,15 @@ class SwarmOptimizer:
             vram_used = sum(a.vram_gb for a in agents if a.name in set(active_models))
 
         vram_violation = vram_used > gpu_vram_gb + 1e-6
+        obj_val = float(problem.value) if problem.value is not None else None
         return RoutingResult(
             assignments=assignments,
             active_models=active_models,
             vram_used_gb=float(vram_used),
             vram_violation=bool(vram_violation),
             routing_source="lp",
+            loaded_models=sorted(loaded_models),
+            lp_objective_value=obj_val,
         )
 
     def _fallback(
@@ -203,5 +209,6 @@ class SwarmOptimizer:
             vram_used_gb=float(vram_used),
             vram_violation=bool(vram_violation),
             routing_source="fallback",
+            loaded_models=sorted(loaded_models),
         )
 

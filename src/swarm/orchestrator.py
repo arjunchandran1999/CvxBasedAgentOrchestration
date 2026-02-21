@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .agents import Agent, default_agents
-from .estimator import QualityEstimator
+from .estimator import QualityEstimator, estimate_token_cost, normalized_switch_cost
 from .executor import SubtaskResult, execute
 from .evaluator import Evaluation, evaluate
 from .ollama_client import OllamaClient
@@ -17,8 +17,80 @@ from typing import Literal
 
 from .benchmarks.registry import BenchmarkExample, ensure_default_benchmarks_loaded, get as get_benchmark
 
-from .telemetry import JobTelemetry, OrchestrationTelemetry, SubtaskTelemetry, TelemetryLogger, now_ms
+from .telemetry import JobTelemetry, OrchestrationTelemetry, SubtaskPlanTelemetry, SubtaskTelemetry, TelemetryLogger, now_ms
 from .gpu import GpuSpec, detect_gpu, get_effective_vram_gb
+
+
+def _compute_estimates_and_oracle(
+    *,
+    subtasks: list,
+    agents: list[Agent],
+    estimator: QualityEstimator,
+    loaded_models: set[str],
+    lambda_token: float,
+    lambda_switch: float,
+    token_scale: float,
+    switch_t_scale_ms: float,
+    assignments: list[Assignment],
+    lp_objective_value: float | None,
+) -> tuple[list[dict], dict]:
+    """Compute per (model, task) estimates and oracle (best-per-task, LP objective)."""
+    by_name = {a.name: a for a in agents}
+    model_task_estimates: list[dict] = []
+    best_by_quality: dict[str, str] = {}
+    best_by_utility: dict[str, str] = {}
+
+    for s in subtasks:
+        best_q = None
+        best_q_model = None
+        best_u = None
+        best_u_model = None
+        for a in agents:
+            quality = estimator.predict(a, s)
+            tok_raw = estimate_token_cost(a, s)
+            tok_norm = tok_raw / token_scale
+            sw = 0.0 if a.name in loaded_models else normalized_switch_cost(a, t_scale_ms=switch_t_scale_ms)
+            utility_cell = quality - lambda_token * tok_norm  # cell utility before switch
+            model_task_estimates.append({
+                "subtask_id": s.id,
+                "model": a.name,
+                "quality": round(quality, 4),
+                "token_cost": round(tok_raw, 2),
+                "switch_cost": round(sw, 4),
+                "utility_cell": round(utility_cell, 4),
+                "utility": round(utility_cell - lambda_switch * sw, 4),  # includes switch if unloaded
+            })
+            if best_q is None or quality > best_q:
+                best_q = quality
+                best_q_model = a.name
+            util = utility_cell - lambda_switch * sw
+            if best_u is None or util > best_u:
+                best_u = util
+                best_u_model = a.name
+        best_by_quality[s.id] = best_q_model
+        best_by_utility[s.id] = best_u_model
+
+    # Chosen assignment's total utility (LP objective: sum(P - λ*Ctok) - λ_switch * sum(Csw for used unloaded models))
+    chosen_models = {a.subtask_id: a.agent for a in assignments}
+    used_models = set(chosen_models.values())
+    chosen_utility = 0.0
+    for e in model_task_estimates:
+        if e["subtask_id"] in chosen_models and e["model"] == chosen_models[e["subtask_id"]]:
+            chosen_utility += e["utility_cell"]
+    switch_penalty = 0.0
+    for m in used_models:
+        if m not in loaded_models and m in by_name:
+            switch_penalty += lambda_switch * normalized_switch_cost(by_name[m], t_scale_ms=switch_t_scale_ms)
+    chosen_utility -= switch_penalty
+
+    oracle: dict = {
+        "best_per_task_by_quality": best_by_quality,
+        "best_per_task_by_utility": best_by_utility,
+        "chosen_utility": round(chosen_utility, 4),
+    }
+    if lp_objective_value is not None:
+        oracle["lp_objective_value"] = round(lp_objective_value, 4)
+    return model_task_estimates, oracle
 
 
 @dataclass(frozen=True)
@@ -40,6 +112,11 @@ class JobSummary:
     total_completion_tokens: int | None
     avg_judge_score: float | None
     success_rate: float
+    plan: list[dict]  # subtask plan fed to router: [{id, task_type, description, estimated_tokens, difficulty}]
+    task_to_model: dict[str, str]  # subtask_id -> chosen model
+    loaded_models: list[str]  # models at router input (from SwarmOptimizer / planner)
+    model_task_estimates: list[dict]  # [{subtask_id, model, quality, token_cost, switch_cost, utility}]
+    oracle: dict  # {lp_objective_value?, best_per_task_by_quality, best_per_task_by_utility, chosen_utility}
 
 
 class SwarmOrchestrator:
@@ -135,6 +212,8 @@ class SwarmOrchestrator:
                 active_models=[],
                 active_roles=[],
                 active_role_agents=[],
+                n_distinct_models=0,
+                n_role_agents=0,
                 models_swapped_in=[],
                 estimated_switch_cost_ms=0.0,
                 sum_token_cost=0.0,
@@ -147,8 +226,33 @@ class SwarmOrchestrator:
         subtasks: list[Subtask]
         if subtasks_override is not None:
             subtasks = subtasks_override
+            plan_source = "benchmark"
         else:
             subtasks = await decompose(query, self.ollama, planner_model=self.decomposer_model)
+            plan_source = "decomposer"
+
+        # Log the subtask plan fed to LP or LLM planner before routing.
+        self.telemetry.log_subtask_plan(
+            SubtaskPlanTelemetry(
+                event="subtask_plan",
+                ts_ms=now_ms(),
+                run_id=self.run_id,
+                job_id=job_id,
+                benchmark_name=benchmark_name,
+                routing_mode=self.routing_mode,
+                plan_source=plan_source,
+                subtasks=[
+                    {
+                        "id": s.id,
+                        "task_type": s.task_type.value,
+                        "description": s.description,
+                        "estimated_tokens": s.estimated_tokens,
+                        "difficulty": float(s.difficulty),
+                    }
+                    for s in subtasks
+                ],
+            )
+        )
 
         if self.routing_mode == "lp":
             routing: RoutingResult = self.optimizer.solve(
@@ -202,6 +306,21 @@ class SwarmOrchestrator:
                     "agent_id": f"{s.task_type.value}|{a.agent}",
                 }
             )
+
+        # Compute estimates and oracle (before estimator update) for logging
+        lp_obj = getattr(routing, "lp_objective_value", None)
+        model_task_estimates, oracle = _compute_estimates_and_oracle(
+            subtasks=subtasks,
+            agents=self.agents,
+            estimator=self.estimator,
+            loaded_models=loaded_before,
+            lambda_token=self.lambda_token,
+            lambda_switch=self.lambda_switch,
+            token_scale=self.token_scale,
+            switch_t_scale_ms=self.switch_t_scale_ms,
+            assignments=routing.assignments,
+            lp_objective_value=lp_obj,
+        )
 
         # Explicit orchestration output log (tagged by routing source).
         self.telemetry.log_orchestration(
@@ -348,6 +467,8 @@ class SwarmOrchestrator:
                 active_models=sorted(active_models),
                 active_roles=active_roles,
                 active_role_agents=active_role_agents,
+                n_distinct_models=len(active_models),
+                n_role_agents=len(active_role_agents),
                 models_swapped_in=models_swapped_in,
                 estimated_switch_cost_ms=estimated_switch_cost_ms,
                 sum_token_cost=0.0,  # filled after subtask loop
@@ -402,6 +523,7 @@ class SwarmOrchestrator:
                     benchmark_score=(computed_subtask_scores.get(s.id) if computed_subtask_scores else None),
                     success=bool(r.success),
                     error=r.error,
+                    output=r.output,
                 )
             )
 
@@ -426,6 +548,8 @@ class SwarmOrchestrator:
                 active_models=sorted(active_models),
                 active_roles=active_roles,
                 active_role_agents=active_role_agents,
+                n_distinct_models=len(active_models),
+                n_role_agents=len(active_role_agents),
                 models_swapped_in=models_swapped_in,
                 estimated_switch_cost_ms=estimated_switch_cost_ms,
                 sum_token_cost=float(sum_token_cost),
@@ -452,6 +576,19 @@ class SwarmOrchestrator:
         successes = [1.0 if r.success else 0.0 for r in results]
         success_rate = float(sum(successes) / len(successes)) if successes else 0.0
 
+        plan = [
+            {
+                "id": s.id,
+                "task_type": s.task_type.value,
+                "description": s.description,
+                "estimated_tokens": s.estimated_tokens,
+                "difficulty": float(s.difficulty),
+            }
+            for s in subtasks
+        ]
+        task_to_model = {a.subtask_id: a.agent for a in routing.assignments}
+        loaded_models_list = list(getattr(routing, "loaded_models", None) or [])
+
         summary = JobSummary(
             run_id=self.run_id,
             job_id=job_id,
@@ -470,6 +607,11 @@ class SwarmOrchestrator:
             total_completion_tokens=total_completion,
             avg_judge_score=avg_judge,
             success_rate=success_rate,
+            plan=plan,
+            task_to_model=task_to_model,
+            loaded_models=loaded_models_list,
+            model_task_estimates=model_task_estimates,
+            oracle=oracle,
         )
 
         # Write job artifact for benchmark scoring.
@@ -502,6 +644,9 @@ class SwarmOrchestrator:
                     "active_roles": active_roles,
                     "active_role_agents": active_role_agents,
                     "loaded_models_before": sorted(loaded_before),
+                    "loaded_models_at_router": loaded_models_list,
+                    "model_task_estimates": model_task_estimates,
+                    "oracle": oracle,
                     "vram_used_gb": float(routing.vram_used_gb),
                     "vram_violation": bool(routing.vram_violation),
                     "job_score": job_score if job_score is not None else computed_job_score,

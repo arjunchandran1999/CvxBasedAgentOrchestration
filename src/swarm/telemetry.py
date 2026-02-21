@@ -28,6 +28,8 @@ class JobTelemetry:
     active_models: list[str]
     active_roles: list[str]
     active_role_agents: list[str]  # unique set of "<role>|<model>"
+    n_distinct_models: int
+    n_role_agents: int
     models_swapped_in: list[str]
     estimated_switch_cost_ms: float
     sum_token_cost: float
@@ -61,6 +63,20 @@ class SubtaskTelemetry:
     benchmark_score: float | None
     success: bool
     error: str | None = None
+    output: str | None = None  # model output for this subtask
+
+
+@dataclass(frozen=True)
+class SubtaskPlanTelemetry:
+    """The subtask plan fed to LP or LLM planner before routing."""
+    event: str  # "subtask_plan"
+    ts_ms: float
+    run_id: str
+    job_id: str
+    benchmark_name: str | None
+    routing_mode: str
+    plan_source: str  # "benchmark" | "decomposer"
+    subtasks: list[dict]  # [{id, task_type, description, estimated_tokens, difficulty}]
 
 
 @dataclass(frozen=True)
@@ -101,6 +117,9 @@ class TelemetryLogger:
 
     def log_orchestration(self, ot: OrchestrationTelemetry) -> None:
         self.write(asdict(ot))
+
+    def log_subtask_plan(self, pt: SubtaskPlanTelemetry) -> None:
+        self.write(asdict(pt))
 
 
 def now_ms() -> float:

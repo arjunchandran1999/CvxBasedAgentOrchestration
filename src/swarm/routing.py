@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -20,4 +20,6 @@ class RoutingResult:
     vram_used_gb: float
     vram_violation: bool = False
     routing_source: str = "unknown"  # "lp" | "llm_planner" | "fallback"
+    loaded_models: list[str] = field(default_factory=list)  # models at optimizer/planner input (for logging)
+    lp_objective_value: float | None = None  # LP optimal objective (when routing_source="lp")
 

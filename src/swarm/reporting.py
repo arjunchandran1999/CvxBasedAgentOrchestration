@@ -78,6 +78,7 @@ def aggregate_reports(*, bench_dir: Path, run_dirs: dict[str, Path], benchmarks:
     }
 
     rows: list[dict[str, Any]] = []
+    output_lines: list[dict[str, Any]] = []
 
     for mode, run_dir in run_dirs.items():
         artifacts = run_dir / "artifacts"
@@ -134,6 +135,36 @@ def aggregate_reports(*, bench_dir: Path, run_dirs: dict[str, Path], benchmarks:
                 }
             )
 
+            # Collect subtask outputs for outputs.jsonl (workflowbench etc.)
+            sub_scores = s.get("subtask_scores")
+            if not isinstance(sub_scores, list):
+                sub_scores = []
+            results_list = art.get("results") or []
+            ref_subs = (ex.reference or {}).get("subtasks", []) if isinstance(ex.reference, dict) else []
+            for res in results_list:
+                if isinstance(res, dict) and "subtask_id" in res:
+                    sid = res.get("subtask_id", "")
+                    out_text = res.get("output", "")
+                    expected = next(
+                        (rs.get("expected") for rs in ref_subs if str(rs.get("id")) == str(sid)),
+                        None,
+                    )
+                    sub_score = None
+                    for i, rs in enumerate(ref_subs):
+                        if str(rs.get("id")) == str(sid) and i < len(sub_scores):
+                            sub_score = sub_scores[i]
+                            break
+                    output_lines.append({
+                        "routing_mode": mode,
+                        "job_id": job_id,
+                        "example_id": ex.example_id,
+                        "subtask_id": sid,
+                        "output": out_text,
+                        "expected": expected,
+                        "benchmark_score": sub_score,
+                        "agent": res.get("agent"),
+                    })
+
         report["modes"][mode] = {
             "n_scored": len(scores),
             "avg_score": (sum(scores) / len(scores)) if scores else None,
@@ -153,6 +184,14 @@ def aggregate_reports(*, bench_dir: Path, run_dirs: dict[str, Path], benchmarks:
             w.writeheader()
             w.writerows(rows)
         report["report_csv"] = str(csv_path)
+
+    # Write outputs.jsonl (subtask outputs for workflowbench etc.)
+    if output_lines:
+        out_path = bench_dir / "outputs.jsonl"
+        with out_path.open("w", encoding="utf-8") as f:
+            for line in output_lines:
+                f.write(json.dumps(line, ensure_ascii=False) + "\n")
+        report["outputs_jsonl"] = str(out_path)
 
     return report
 

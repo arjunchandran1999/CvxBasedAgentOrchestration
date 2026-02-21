@@ -57,7 +57,10 @@ async def llm_assign(
     planner_timeout_s: float = 30.0,
 ) -> RoutingResult:
     if not subtasks:
-        return RoutingResult(assignments=[], active_models=[], vram_used_gb=0.0, vram_violation=False, routing_source="llm_planner")
+        return RoutingResult(
+            assignments=[], active_models=[], vram_used_gb=0.0, vram_violation=False,
+            routing_source="llm_planner", loaded_models=sorted(loaded_models),
+        )
 
     estimator.ensure_priors(agents)
     agent_names = [a.name for a in agents]
@@ -187,6 +190,7 @@ async def llm_assign(
         vram_used_gb=float(used_vram),
         vram_violation=bool(vram_violation),
         routing_source="llm_planner",
+        loaded_models=sorted(loaded_models),
     )
 
 
@@ -245,5 +249,6 @@ def _fallback(
         vram_used_gb=float(vram_used),
         vram_violation=bool(vram_violation),
         routing_source="fallback",
+        loaded_models=sorted(loaded_models),
     )
 
