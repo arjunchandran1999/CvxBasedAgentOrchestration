@@ -101,12 +101,32 @@ $$
 
 The LP chooses which models to load and how to assign subtasks so that quality minus token and switch costs is maximized, subject to VRAM.
 
+The LP uses **HiGHS** by default, with automatic fallback to SCS on solver failure. Telemetry records `lp_solver_name`, `lp_solve_status`, and `lp_solve_time_ms` per plan step.
+
+## Task DAGs and MPC
+
+For benchmarks that define dependencies between subtasks (e.g. workflowbench), jobs run as **directed acyclic graphs (DAGs)**:
+
+- **Pure DAG** (`--horizon_depth 0`): Route and execute layer-by-layer. At each layer, only currently ready nodes (deps satisfied) are optimized and run.
+
+- **MPC** (`--horizon_depth 1` or higher): *Receding-horizon planning*. At each step, the LP/LLM optimizes over a **horizon** of ready nodes plus their successors (up to `horizon_depth` steps ahead), then **executes only the currently ready subset**. This lets the optimizer anticipate future tasks (e.g. pre-load models) while still replanning as the DAG unfolds.
+
+```bash
+# MPC with 1-layer lookahead (default for DAG benchmarks)
+swarm bench --benchmark workflowbench --horizon_depth 1 --compare both --limit 3
+
+# Pure layer-by-layer DAG (no lookahead)
+swarm bench --benchmark workflowbench --horizon_depth 0 --compare both --limit 3
+```
+
+Telemetry events for DAG/MPC runs: `dag_structure` (nodes, edges, mpc, horizon_depth), `plan_step` (horizon_nodes, ready_now_nodes, lp_solver_name, executed_assignments), and `job_dag_summary` (n_plan_steps, n_layers, total costs).
+
 ## Benchmarks
 
 Two built-in benchmarks (deterministic, small):
 
-- `workflowbench`: multi-subtask synthetic workflows (extraction, math, code with optional `--code_eval`)
-- `code_math_mix`: mixed code+math+reasoning+extraction tasks
+- **workflowbench**: multi-subtask synthetic workflows with **DAG dependencies** (extraction → math → code; s0→s1→s2). Uses MPC by default. Optional `--code_eval` for code execution.
+- **code_math_mix**: mixed code+math+reasoning+extraction tasks (flat subtask lists)
 
 Scoring uses per-subtask `expected` values (JSON match, numeric match, code execution when `--code_eval`). Artifacts store `model_task_estimates` — the utility matrix (quality, token_cost, switch_cost, utility per agent per subtask) — for analysis.
 
@@ -119,12 +139,12 @@ swarm bench --benchmark code_math_mix --compare both --limit 8
 
 ## Experiments (LP vs LLM sweeps)
 
-**Experiment 1 — VRAM stress** (agents_heavy, 8GB, workflowbench):
+**Experiment 1 — VRAM stress** (agents_heavy, 8GB, workflowbench with MPC):
 
 ```bash
 swarm bench --benchmark workflowbench --agents_file configs/agents_heavy.json \
   --gpu_vram_gb 8 --compare both --limit 3 \
-  --output_dir experiments/exp1_vram_stress
+  --horizon_depth 1 --output_dir experiments/exp1_vram_stress
 ```
 
 **Experiment 2 — λ_switch sweep** (agents_fast, code_math_mix, interleave):
@@ -208,7 +228,8 @@ swarm bench --benchmark code_math_mix --compare both --limit 8 --judge --code_ev
 - **Artifacts**: `runs/<run_id>/artifacts/<job_id>.json` — full job record: `benchmark_reference` (subtasks with `expected`), `subtasks`, `assignments`, `model_task_estimates` (quality, token_cost, switch_cost, utility per model per subtask), `results` (subtask outputs)
 - **Subtask plan**: `event="subtask_plan"` — the plan fed to LP or LLM before routing (`plan_source`: `benchmark` or `decomposer`)
 - **Subtask outputs**: each subtask event includes `output`; `bench_dir/outputs.jsonl` after `swarm bench` has per-subtask outputs with `expected`, `benchmark_score`, `agent`
-- **Report**: `bench_dir/report.json` — aggregated scores by mode (lp/llm): `avg_score`, `avg_models_swapped_in`, `avg_estimated_switch_cost_ms`, `avg_active_model_count`, `avg_vram_used_gb`; `bench_dir/report.csv` for per-example rows
+- **Report**: `bench_dir/report.json` — aggregated scores by mode (lp/llm): `avg_score`, `avg_models_swapped_in`, `avg_estimated_switch_cost_ms`, `avg_active_model_count`, `avg_vram_used_gb`, `score_std`, `vram_violation_rate`, `avg_oracle_gap_pct` (LLM), `avg_lp_objective_value` (LP); `comparison_lp_vs_llm` with `jobs_lp_won`, `jobs_llm_won`, `routing_divergence_pct`, `when_differed_lp_better`; `bench_dir/report.csv` for per-example rows
+- **DAG/MPC**: `dag_structure`, `plan_step`, `job_dag_summary` events in telemetry when running workflowbench (or any benchmark with `get_task_dag`)
 - **Multi-agent**: `n_distinct_models`, `n_role_agents`, `active_role_agents` in job telemetry
 
 ## Notes

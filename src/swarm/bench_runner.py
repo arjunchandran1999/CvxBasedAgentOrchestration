@@ -41,6 +41,7 @@ class BenchConfig:
     code_eval: bool = False
     output_dir: str = "bench_runs"
     bench_id: str | None = None
+    horizon_depth: int = 1
 
 
 def _set_hf_cache(data_dir: str) -> None:
@@ -125,6 +126,7 @@ async def run_bench(cfg: BenchConfig, *, console: Console) -> int:
             planner_model=cfg.planner_model,
             judge_model=cfg.judge_model,
             planner_timeout_s=cfg.planner_timeout_s,
+            horizon_depth=cfg.horizon_depth,
         )
 
         for idx, ex in enumerate(all_examples, start=1):
@@ -143,6 +145,7 @@ async def run_bench(cfg: BenchConfig, *, console: Console) -> int:
                     job_id=job_id,
                     benchmark_name=ex.benchmark,
                     benchmark_reference=ex.reference,
+                    horizon_depth=cfg.horizon_depth,
                 )
             else:
                 subtasks_override = None

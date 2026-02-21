@@ -13,7 +13,7 @@ from .optimizer import OptimizerConfig, SwarmOptimizer
 from .planner_router import llm_assign
 from .routing import Assignment, RoutingResult
 from .tasks import Subtask, decompose
-from .task_graph import TaskDAG, get_layers, node_to_subtask, topological_sort
+from .task_graph import TaskDAG, get_horizon_nodes, get_layers, node_to_subtask, topological_sort
 from typing import Literal
 
 from .benchmarks.registry import BenchmarkExample, ensure_default_benchmarks_loaded, get as get_benchmark
@@ -140,6 +140,7 @@ class SwarmOrchestrator:
         planner_model: str = "llama3.1:8b",
         judge_model: str = "llama3.1:8b",
         planner_timeout_s: float = 120.0,
+        horizon_depth: int = 1,
     ) -> None:
         self.run_id = run_id
         self.run_dir = run_dir
@@ -168,6 +169,7 @@ class SwarmOrchestrator:
         self.planner_model = str(planner_model)
         self.judge_model = str(judge_model)
         self.planner_timeout_s = float(planner_timeout_s)
+        self.horizon_depth = max(0, int(horizon_depth))
 
         self.optimizer = SwarmOptimizer(
             config=OptimizerConfig(
@@ -675,8 +677,15 @@ class SwarmOrchestrator:
         job_id: str | None = None,
         benchmark_name: str | None = None,
         benchmark_reference: dict | None = None,
+        horizon_depth: int | None = None,
     ) -> JobSummary:
-        """Execute a job as a DAG: route and run each layer in dependency order."""
+        """Execute a job as a DAG with MPC-style receding-horizon planning.
+
+        When horizon_depth=0: route and execute layer-by-layer (pure DAG).
+        When horizon_depth>=1: at each step, optimize over ready nodes + successors up to
+        horizon_depth steps ahead, then execute only the currently ready subset (MPC).
+        """
+        h_depth = horizon_depth if horizon_depth is not None else self.horizon_depth
         job_id = job_id or task_dag.job_id
         loaded_before = set(self.loaded_models)
 
@@ -713,6 +722,7 @@ class SwarmOrchestrator:
 
         topo = topological_sort(task_dag.nodes)
         layers = get_layers(task_dag.nodes, topo)
+        all_node_ids = set(topo)
         edges = [(p, c) for n in task_dag.nodes.values() for p in n.depends_on for c in [n.id] if p in task_dag.nodes]
         self.telemetry.log_dag_structure(
             {
@@ -720,6 +730,8 @@ class SwarmOrchestrator:
                 "run_id": self.run_id,
                 "job_id": job_id,
                 "benchmark_name": benchmark_name,
+                "mpc": h_depth > 0,
+                "horizon_depth": h_depth,
                 "nodes": [{"id": n.id, "task_type": n.task_type.value, "difficulty": n.difficulty} for n in task_dag.nodes.values()],
                 "edges": edges,
             }
@@ -749,14 +761,24 @@ class SwarmOrchestrator:
         model_task_estimates: list[dict] = []
         oracle: dict = {}
 
-        for layer_ids in layers:
-            ready_subtasks = [node_to_subtask(task_dag.nodes[nid]) for nid in layer_ids]
-            if not ready_subtasks:
-                continue
+        while completed < all_node_ids:
+            ready_now = [
+                nid for nid in topo
+                if nid not in completed and set(task_dag.nodes[nid].depends_on).issubset(completed)
+            ]
+            if not ready_now:
+                break
+            horizon_nodes = (
+                get_horizon_nodes(completed, task_dag, h_depth)
+                if h_depth > 0
+                else ready_now
+            )
+            horizon_subtasks = [node_to_subtask(task_dag.nodes[nid]) for nid in horizon_nodes]
+            ready_subtasks = [node_to_subtask(task_dag.nodes[nid]) for nid in ready_now]
 
             if self.routing_mode == "lp":
                 routing = self.optimizer.solve(
-                    subtasks=ready_subtasks,
+                    subtasks=horizon_subtasks,
                     agents=self.agents,
                     estimator=self.estimator,
                     gpu_vram_gb=self.gpu_vram_gb,
@@ -764,7 +786,7 @@ class SwarmOrchestrator:
                 )
             else:
                 routing = await llm_assign(
-                    ready_subtasks,
+                    horizon_subtasks,
                     self.agents,
                     self.estimator,
                     ollama=self.ollama,
@@ -778,6 +800,8 @@ class SwarmOrchestrator:
                     planner_timeout_s=self.planner_timeout_s,
                 )
 
+            ready_assignments = [a for a in routing.assignments if a.subtask_id in ready_now]
+
             active_models = set(routing.active_models)
             models_swapped = sorted(active_models - set(self.loaded_models))
             total_estimated_switch_ms += sum(by_name[m].load_time_ms for m in models_swapped if m in by_name)
@@ -788,8 +812,10 @@ class SwarmOrchestrator:
                 "job_id": job_id,
                 "plan_step_index": plan_step_index,
                 "routing_mode": self.routing_mode,
-                "horizon_nodes": layer_ids,
-                "ready_now_nodes": layer_ids,
+                "mpc": h_depth > 0,
+                "horizon_depth": h_depth,
+                "horizon_nodes": horizon_nodes,
+                "ready_now_nodes": ready_now,
                 "active_models_before": sorted(self.loaded_models),
                 "gpu_vram_gb": self.gpu_vram_gb,
             }
@@ -805,6 +831,10 @@ class SwarmOrchestrator:
                 {"subtask_id": a.subtask_id, "assigned_agent": a.agent, "estimated_performance": a.estimated_performance, "estimated_token_cost": a.estimated_token_cost, "estimated_switch_cost_share": a.estimated_switch_cost}
                 for a in routing.assignments
             ]
+            plan_diag["executed_assignments"] = [
+                {"subtask_id": a.subtask_id, "assigned_agent": a.agent}
+                for a in ready_assignments
+            ]
             self.telemetry.log_plan_step(plan_diag)
 
             self.telemetry.log_orchestration(
@@ -817,29 +847,29 @@ class SwarmOrchestrator:
                     routing_mode=self.routing_mode,
                     routing_source=str(getattr(routing, "routing_source", "unknown")),
                     planner_model=self.planner_model if self.routing_mode == "llm" else None,
-                    assignments=[{"subtask_id": a.subtask_id, "role": ready_subtasks[i].task_type.value if i < len(ready_subtasks) else "", "model": a.agent, "agent_id": f"{ready_subtasks[i].task_type.value if i < len(ready_subtasks) else ''}|{a.agent}"} for i, a in enumerate(routing.assignments)],
+                    assignments=[{"subtask_id": a.subtask_id, "role": ready_subtasks[i].task_type.value if i < len(ready_subtasks) else "", "model": a.agent, "agent_id": f"{ready_subtasks[i].task_type.value if i < len(ready_subtasks) else ''}|{a.agent}"} for i, a in enumerate(ready_assignments)],
                     active_models=sorted(active_models),
-                    active_role_agents=sorted({f"{s.task_type.value}|{routing.assignments[i].agent}" for i, s in enumerate(ready_subtasks) if i < len(routing.assignments)}),
+                    active_role_agents=sorted({f"{s.task_type.value}|{a.agent}" for s, a in zip(ready_subtasks, ready_assignments)}),
                 )
             )
 
             results = await execute(
                 query=query,
                 subtasks=ready_subtasks,
-                assignments=routing.assignments,
+                assignments=ready_assignments,
                 ollama=self.ollama,
                 loaded_models_before=set(self.loaded_models),
                 max_concurrency=4,
             )
             results_all.extend(results)
-            all_assignments.extend(routing.assignments)
+            all_assignments.extend(ready_assignments)
 
             evals = await evaluate(subtasks=ready_subtasks, results=results, judge=self.judge, ollama=self.ollama, judge_model=self.judge_model)
             evals_all.extend(evals)
             eval_by_id = {e.subtask_id: e for e in evals}
             subtask_by_id = {s.id: s for s in ready_subtasks}
             agent_by_name = {a.name: a for a in self.agents}
-            for a in routing.assignments:
+            for a in ready_assignments:
                 s = subtask_by_id.get(a.subtask_id)
                 if s is None:
                     continue
@@ -853,7 +883,7 @@ class SwarmOrchestrator:
 
             self.loaded_models = active_models
 
-            for a in routing.assignments:
+            for a in ready_assignments:
                 r = next((x for x in results if x.subtask_id == a.subtask_id), None)
                 ev = eval_by_id.get(a.subtask_id)
                 s = subtask_by_id.get(a.subtask_id)
@@ -1033,6 +1063,8 @@ class SwarmOrchestrator:
                 "benchmark_name": benchmark_name,
                 "routing_mode": self.routing_mode,
                 "is_dag": True,
+                "mpc": h_depth > 0,
+                "horizon_depth": h_depth,
                 "n_nodes": len(task_dag.nodes),
                 "n_edges": n_edges,
                 "n_layers": len(layers),

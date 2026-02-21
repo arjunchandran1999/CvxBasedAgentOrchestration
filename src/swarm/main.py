@@ -85,6 +85,7 @@ def _build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--code_eval", action="store_true", help="Run coding benchmark tests in subprocesses (execs untrusted code)")
     bench.add_argument("--mix", choices=["grouped", "interleave"], default="grouped")
     bench.add_argument("--output_dir", default="bench_runs")
+    bench.add_argument("--horizon_depth", type=int, default=1, help="MPC lookahead (0=layer-by-layer DAG, 1+=receding horizon)")
 
     exp = sub.add_parser("experiment", help="Run benchmark sweeps (lambda_switch, VRAM) and suites")
     exp.add_argument("--suite", choices=["workflow_sweep", "code_math_sweep"], default=None)
@@ -111,6 +112,7 @@ def _build_parser() -> argparse.ArgumentParser:
     exp.add_argument("--mix", choices=["grouped", "interleave"], default="interleave")
     exp.add_argument("--output_dir", default="experiments")
     exp.add_argument("--exp_id", default=None)
+    exp.add_argument("--horizon_depth", type=int, default=1, help="MPC lookahead for DAG benchmarks")
 
     return p
 
@@ -250,6 +252,7 @@ def main() -> None:
                 code_eval=args.code_eval,
                 output_dir=args.output_dir,
                 bench_id=None,
+                horizon_depth=getattr(args, "horizon_depth", 1),
             )
             return await run_bench(cfg, console=console)
 
@@ -283,6 +286,7 @@ def main() -> None:
                 code_eval=args.code_eval,
                 output_dir="bench_runs",
                 bench_id=None,
+                horizon_depth=getattr(args, "horizon_depth", 1),
             )
             cfg = ExperimentConfig(
                 exp_id=args.exp_id,
