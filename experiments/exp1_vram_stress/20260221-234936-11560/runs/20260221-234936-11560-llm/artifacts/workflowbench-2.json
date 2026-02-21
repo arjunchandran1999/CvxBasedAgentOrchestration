@@ -1,0 +1,131 @@
+{
+  "run_id": "20260221-234936-11560-llm",
+  "job_id": "workflowbench-2",
+  "routing_mode": "llm",
+  "routing_source": "llm_planner",
+  "query": "WorkflowBench job wb2",
+  "benchmark_name": "workflowbench",
+  "benchmark_reference": {
+    "job_id": "wb2",
+    "subtasks": [
+      {
+        "id": "s0",
+        "task_type": "code",
+        "description": "Write Python: def fib(n): return nth Fibonacci with fib(0)=0,fib(1)=1. Return ONLY code.",
+        "expected": {
+          "entry_point": "fib",
+          "value": 55
+        },
+        "estimated_tokens": 450,
+        "difficulty": 3.0
+      },
+      {
+        "id": "s1",
+        "task_type": "math",
+        "description": "Compute fib(10) if fib(0)=0, fib(1)=1. Output only the number.",
+        "expected": 55,
+        "estimated_tokens": 120,
+        "difficulty": 2.0
+      },
+      {
+        "id": "s2",
+        "task_type": "summarize",
+        "description": "In 1-2 sentences, explain how Fibonacci works (recurrence).",
+        "expected": {
+          "keywords": [
+            "fib",
+            "previous",
+            "sum"
+          ]
+        },
+        "estimated_tokens": 180,
+        "difficulty": 2.0
+      }
+    ]
+  },
+  "subtasks": [
+    {
+      "id": "s0",
+      "task_type": "code",
+      "description": "Write Python: def fib(n): return nth Fibonacci with fib(0)=0,fib(1)=1. Return ONLY code.",
+      "estimated_tokens": 450,
+      "difficulty": 3.0
+    },
+    {
+      "id": "s1",
+      "task_type": "math",
+      "description": "Compute fib(10) if fib(0)=0, fib(1)=1. Output only the number.",
+      "estimated_tokens": 120,
+      "difficulty": 2.0
+    },
+    {
+      "id": "s2",
+      "task_type": "summarize",
+      "description": "In 1-2 sentences, explain how Fibonacci works (recurrence).",
+      "estimated_tokens": 180,
+      "difficulty": 2.0
+    }
+  ],
+  "assignments": [
+    {
+      "subtask_id": "s0",
+      "agent": "gemma2:2b",
+      "mode": "llm",
+      "estimated_performance": 0.44000000000000006,
+      "estimated_token_cost": 180.0,
+      "estimated_switch_cost": 0.0
+    },
+    {
+      "subtask_id": "s1",
+      "agent": "gemma2:2b",
+      "mode": "fallback",
+      "estimated_performance": 0.5,
+      "estimated_token_cost": 48.0,
+      "estimated_switch_cost": 0.0
+    },
+    {
+      "subtask_id": "s2",
+      "agent": "gemma2:2b",
+      "mode": "fallback",
+      "estimated_performance": 0.49000000000000005,
+      "estimated_token_cost": 72.0,
+      "estimated_switch_cost": 0.0
+    }
+  ],
+  "results": [
+    {
+      "subtask_id": "s0",
+      "agent": "gemma2:2b",
+      "output": "```python\ndef fib(n):\n  if n == 0:\n    return 0\n  elif n == 1:\n    return 1\n  else:\n    return fib(n-1) + fib(n-2)\n```\n\n**Explanation:**\n\nThis code defines a function called `fib` that calculates the nth Fibonacci number using recursion. Here's how it works:\n\n* **Base Cases:** The function first checks for the base cases of `n == 0` and `n == 1`. If `n` is 0, it returns 0; if `n` is 1, it returns 1.\n* **Recursive Step:** For any other value of `n`, the function recursively calls itself twice: once with `n-1` and once with `n-2`. The sum of these two recursive calls gives us the nth Fibonacci number.\n\n**How to use this code:**\n\nTo calculate the 5th Fibonacci number, you would call the function like this:\n\n```python\nfib(5)  # Output: 5\n```\n\n\nLet me know if you'd like to explore other aspects of recursion or have any more coding challenges! ",
+      "latency_ms": 2498.5699327662587,
+      "prompt_tokens": 82,
+      "completion_tokens": 256,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    },
+    {
+      "subtask_id": "s1",
+      "agent": "gemma2:2b",
+      "output": "## Computing fib(10) for WorkflowBench job wb2\n\n**Understanding the Problem:**\n\nWe need to calculate the 10th Fibonacci number (fib(10)).  This is a classic mathematical problem with a recursive definition:\n\n* **fib(0) = 0** \n* **fib(1) = 1**\n* **fib(n) = fib(n-1) + fib(n-2)** for n > 1\n\n**Solution:**\n\nWe'll use the recursive definition to calculate fib(10):\n\n1. **fib(0) = 0** (given)\n2. **fib(1) = 1** (given)\n3. **fib(2) = fib(1) + fib(0) = 1 + 0 = 1**\n4. **fib(3) = fib(2) + fib(1) = 1 + 1 = 2**\n5. **fib(4) = fib(3) + fib(2) = 2 + 1 = 3**\n6. **fib(5) = fib(4) + fib(3) = 3 + 2 = 5**\n7. **fib(6) = fib(5) + fib(4) = 5 + 3 = 8**\n8. **fib(7) = fib(6) + fib(5) = 8 + 5 = 13**\n9. **fib(8) = fib(7) + fib(6) = 13 + 8 = 21**\n10. **fib(9) = fib(8) + fib(7) = 21 + 13 = 34**\n\nFinally, **fib(10) = 34**.\n\n\n**Final Answer:** 34 \n\n\n\nLet me know if you'd like to explore other Fibonacci calculations or have any further questions!",
+      "latency_ms": 4530.746079981327,
+      "prompt_tokens": 74,
+      "completion_tokens": 422,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    },
+    {
+      "subtask_id": "s2",
+      "agent": "gemma2:2b",
+      "output": "Fibonacci is a sequence where each number is the sum of the two preceding ones, starting with 0 and 1.  This creates a pattern of recursive relationships that continue indefinitely. \n",
+      "latency_ms": 825.697039719671,
+      "prompt_tokens": 61,
+      "completion_tokens": 39,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    }
+  ],
+  "job_score": 0.5555555555555555
+}
