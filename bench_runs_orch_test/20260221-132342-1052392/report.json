@@ -1,0 +1,19 @@
+{
+  "bench_dir": "bench_runs_orch_test/20260221-132342-1052392",
+  "n_examples": 1,
+  "modes": {
+    "llm": {
+      "n_scored": 1,
+      "avg_score": 0.6666666666666666,
+      "by_benchmark": {
+        "workflowbench": 0.6666666666666666
+      },
+      "avg_models_swapped_in": 2.0,
+      "avg_estimated_switch_cost_ms": 1400.0,
+      "avg_active_model_count": 2.0,
+      "avg_vram_used_gb": 5.0,
+      "run_dir": "bench_runs_orch_test/20260221-132342-1052392/runs/20260221-132342-1052392-llm"
+    }
+  },
+  "report_csv": "bench_runs_orch_test/20260221-132342-1052392/report.csv"
+}

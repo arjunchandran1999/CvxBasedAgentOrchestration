@@ -19,4 +19,5 @@ class RoutingResult:
     active_models: list[str]
     vram_used_gb: float
     vram_violation: bool = False
+    routing_source: str = "unknown"  # "lp" | "llm_planner" | "fallback"
 

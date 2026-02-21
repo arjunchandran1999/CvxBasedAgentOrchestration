@@ -63,6 +63,21 @@ class SubtaskTelemetry:
     error: str | None = None
 
 
+@dataclass(frozen=True)
+class OrchestrationTelemetry:
+    event: str  # "orchestration"
+    ts_ms: float
+    run_id: str
+    job_id: str
+    benchmark_name: str | None
+    routing_mode: str  # "lp" | "llm"
+    routing_source: str  # "lp" | "llm_planner" | "fallback"
+    planner_model: str | None
+    assignments: list[dict]  # [{subtask_id, role, model, agent_id}]
+    active_models: list[str]
+    active_role_agents: list[str]
+
+
 class TelemetryLogger:
     def __init__(self, *, run_dir: Path) -> None:
         self.run_dir = run_dir
@@ -83,6 +98,9 @@ class TelemetryLogger:
 
     def log_subtask(self, st: SubtaskTelemetry) -> None:
         self.write(asdict(st))
+
+    def log_orchestration(self, ot: OrchestrationTelemetry) -> None:
+        self.write(asdict(ot))
 
 
 def now_ms() -> float:

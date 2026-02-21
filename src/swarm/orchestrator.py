@@ -17,7 +17,7 @@ from typing import Literal
 
 from .benchmarks.registry import BenchmarkExample, ensure_default_benchmarks_loaded, get as get_benchmark
 
-from .telemetry import JobTelemetry, SubtaskTelemetry, TelemetryLogger, now_ms
+from .telemetry import JobTelemetry, OrchestrationTelemetry, SubtaskTelemetry, TelemetryLogger, now_ms
 from .gpu import GpuSpec, detect_gpu, get_effective_vram_gb
 
 
@@ -188,6 +188,37 @@ class SwarmOrchestrator:
         models_swapped_in = sorted(active_models - loaded_before)
         by_name = {a.name: a for a in self.agents}
         estimated_switch_cost_ms = float(sum(by_name[m].load_time_ms for m in models_swapped_in if m in by_name))
+
+        orchestration_assignments: list[dict] = []
+        for s in subtasks:
+            a = assignment_by_subtask.get(s.id)
+            if a is None:
+                continue
+            orchestration_assignments.append(
+                {
+                    "subtask_id": s.id,
+                    "role": s.task_type.value,
+                    "model": a.agent,
+                    "agent_id": f"{s.task_type.value}|{a.agent}",
+                }
+            )
+
+        # Explicit orchestration output log (tagged by routing source).
+        self.telemetry.log_orchestration(
+            OrchestrationTelemetry(
+                event="orchestration",
+                ts_ms=now_ms(),
+                run_id=self.run_id,
+                job_id=job_id,
+                benchmark_name=benchmark_name,
+                routing_mode=self.routing_mode,
+                routing_source=str(getattr(routing, "routing_source", "unknown")),
+                planner_model=(self.planner_model if self.routing_mode == "llm" else None),
+                assignments=orchestration_assignments,
+                active_models=sorted(active_models),
+                active_role_agents=active_role_agents,
+            )
+        )
 
         # Execute all subtasks.
         results: list[SubtaskResult] = await execute(
@@ -450,11 +481,20 @@ class SwarmOrchestrator:
                     "run_id": self.run_id,
                     "job_id": job_id,
                     "routing_mode": self.routing_mode,
+                    "routing_source": str(getattr(routing, "routing_source", "unknown")),
                     "query": query,
                     "benchmark_name": benchmark_name,
                     "benchmark_reference": benchmark_reference,
                     "subtasks": [asdict(s) for s in subtasks],
                     "assignments": [asdict(a) for a in routing.assignments],
+                    "orchestration": {
+                        "routing_mode": self.routing_mode,
+                        "routing_source": str(getattr(routing, "routing_source", "unknown")),
+                        "planner_model": (self.planner_model if self.routing_mode == "llm" else None),
+                        "assignments": orchestration_assignments,
+                        "active_models": sorted(active_models),
+                        "active_role_agents": active_role_agents,
+                    },
                     "results": [asdict(r) for r in results],
                     "evaluations": [asdict(e) for e in evals],
                     "final_answer": final_answer,
