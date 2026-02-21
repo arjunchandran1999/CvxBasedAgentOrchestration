@@ -22,4 +22,7 @@ class RoutingResult:
     routing_source: str = "unknown"  # "lp" | "llm_planner" | "fallback"
     loaded_models: list[str] = field(default_factory=list)  # models at optimizer/planner input (for logging)
     lp_objective_value: float | None = None  # LP optimal objective (when routing_source="lp")
+    lp_solver_name: str | None = None
+    lp_solve_status: str | None = None
+    lp_solve_time_ms: float | None = None
 

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..agents import SubtaskType
+from ..task_graph import TaskDAG, TaskNode
 from ..tasks import Subtask
 from .code_eval import code_eval_enabled, extract_python_code, run_code_in_subprocess
 from .registry import BenchmarkExample, register
@@ -25,6 +26,8 @@ class WorkflowSubtaskSpec:
 class WorkflowJob:
     job_id: str
     subtasks: list[WorkflowSubtaskSpec]
+    # For DAG: list of (parent_id, child_id) per job. wb1: s0->s1, s1->s2; wb2: s0->s1, s0->s2; wb3: s0->s1, s1->s2
+    edges: list[tuple[str, str]] | None = None
 
 
 def _extract_ints(text: str) -> list[int]:
@@ -128,6 +131,7 @@ class WorkflowBench:
                         difficulty=2.0,
                     ),
                 ],
+                edges=[("s0", "s1"), ("s1", "s2")],
             ),
             WorkflowJob(
                 job_id="wb2",
@@ -157,6 +161,7 @@ class WorkflowBench:
                         difficulty=2.0,
                     ),
                 ],
+                edges=[("s0", "s1"), ("s0", "s2")],
             ),
             WorkflowJob(
                 job_id="wb3",
@@ -186,6 +191,7 @@ class WorkflowBench:
                         difficulty=1.5,
                     ),
                 ],
+                edges=[("s0", "s1"), ("s1", "s2")],
             ),
         ]
 
@@ -212,6 +218,29 @@ class WorkflowBench:
             "estimated_tokens": s.estimated_tokens,
             "difficulty": s.difficulty,
         }
+
+    def get_task_dag(self, *, example: BenchmarkExample) -> TaskDAG | None:
+        """Return a TaskDAG for workflowbench jobs with dependencies."""
+        job_id = str(example.reference.get("job_id") or example.example_id)
+        job = next((j for j in self.jobs if j.job_id == job_id), None)
+        if job is None or getattr(job, "edges", None) is None:
+            return None
+        edges = job.edges or []
+        parent_map: dict[str, list[str]] = {s.id: [] for s in job.subtasks}
+        for p, c in edges:
+            if c in parent_map:
+                parent_map[c].append(p)
+        nodes: dict[str, TaskNode] = {}
+        for s in job.subtasks:
+            nodes[s.id] = TaskNode(
+                id=s.id,
+                task_type=s.task_type,
+                description=s.description,
+                estimated_tokens=s.estimated_tokens,
+                difficulty=s.difficulty,
+                depends_on=parent_map.get(s.id, []),
+            )
+        return TaskDAG(job_id=job_id, nodes=nodes)
 
     def make_subtasks(self, *, example: BenchmarkExample) -> list[Subtask] | None:
         subs = example.reference.get("subtasks") or []

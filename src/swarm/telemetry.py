@@ -121,6 +121,15 @@ class TelemetryLogger:
     def log_subtask_plan(self, pt: SubtaskPlanTelemetry) -> None:
         self.write(asdict(pt))
 
+    def log_dag_structure(self, payload: dict) -> None:
+        self.write({"event": "dag_structure", **payload})
+
+    def log_plan_step(self, payload: dict) -> None:
+        self.write({"event": "plan_step", **payload})
+
+    def log_job_dag_summary(self, payload: dict) -> None:
+        self.write({"event": "job_dag_summary", **payload})
+
 
 def now_ms() -> float:
     return time.time() * 1000.0

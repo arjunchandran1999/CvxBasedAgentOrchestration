@@ -13,6 +13,7 @@ from .optimizer import OptimizerConfig, SwarmOptimizer
 from .planner_router import llm_assign
 from .routing import Assignment, RoutingResult
 from .tasks import Subtask, decompose
+from .task_graph import TaskDAG, get_layers, node_to_subtask, topological_sort
 from typing import Literal
 
 from .benchmarks.registry import BenchmarkExample, ensure_default_benchmarks_loaded, get as get_benchmark
@@ -664,5 +665,447 @@ class SwarmOrchestrator:
         # Update loaded models for next job.
         self.loaded_models = set(active_models)
 
+        return summary
+
+    async def run_job_dag(
+        self,
+        *,
+        task_dag: TaskDAG,
+        query: str,
+        job_id: str | None = None,
+        benchmark_name: str | None = None,
+        benchmark_reference: dict | None = None,
+    ) -> JobSummary:
+        """Execute a job as a DAG: route and run each layer in dependency order."""
+        job_id = job_id or task_dag.job_id
+        loaded_before = set(self.loaded_models)
+
+        self.telemetry.log_job(
+            JobTelemetry(
+                event="job_start",
+                ts_ms=now_ms(),
+                run_id=self.run_id,
+                job_id=job_id,
+                query=query,
+                gpu_name=self.gpu_spec.name if self.gpu_spec else None,
+                gpu_uuid=self.gpu_spec.uuid if self.gpu_spec else None,
+                benchmark_name=benchmark_name,
+                routing_mode=self.routing_mode,
+                lambda_token=self.lambda_token,
+                lambda_switch=self.lambda_switch,
+                gpu_vram_gb=self.gpu_vram_gb,
+                vram_used_gb=0.0,
+                vram_violation=False,
+                loaded_models_before=sorted(loaded_before),
+                active_models=[],
+                active_roles=[],
+                active_role_agents=[],
+                n_distinct_models=0,
+                n_role_agents=0,
+                models_swapped_in=[],
+                estimated_switch_cost_ms=0.0,
+                sum_token_cost=0.0,
+                job_score=None,
+                token_scale=self.token_scale,
+                switch_t_scale_ms=self.switch_t_scale_ms,
+            )
+        )
+
+        topo = topological_sort(task_dag.nodes)
+        layers = get_layers(task_dag.nodes, topo)
+        edges = [(p, c) for n in task_dag.nodes.values() for p in n.depends_on for c in [n.id] if p in task_dag.nodes]
+        self.telemetry.log_dag_structure(
+            {
+                "ts_ms": now_ms(),
+                "run_id": self.run_id,
+                "job_id": job_id,
+                "benchmark_name": benchmark_name,
+                "nodes": [{"id": n.id, "task_type": n.task_type.value, "difficulty": n.difficulty} for n in task_dag.nodes.values()],
+                "edges": edges,
+            }
+        )
+
+        all_subtasks = [node_to_subtask(n) for n in task_dag.nodes.values()]
+        self.telemetry.log_subtask_plan(
+            SubtaskPlanTelemetry(
+                event="subtask_plan",
+                ts_ms=now_ms(),
+                run_id=self.run_id,
+                job_id=job_id,
+                benchmark_name=benchmark_name,
+                routing_mode=self.routing_mode,
+                plan_source="benchmark_dag",
+                subtasks=[{"id": s.id, "task_type": s.task_type.value, "description": s.description, "estimated_tokens": s.estimated_tokens, "difficulty": float(s.difficulty)} for s in all_subtasks],
+            )
+        )
+
+        completed: set[str] = set()
+        results_all: list[SubtaskResult] = []
+        evals_all: list[Evaluation] = []
+        plan_step_index = 0
+        total_estimated_switch_ms = 0.0
+        by_name = {a.name: a for a in self.agents}
+        all_assignments: list[Assignment] = []
+        model_task_estimates: list[dict] = []
+        oracle: dict = {}
+
+        for layer_ids in layers:
+            ready_subtasks = [node_to_subtask(task_dag.nodes[nid]) for nid in layer_ids]
+            if not ready_subtasks:
+                continue
+
+            if self.routing_mode == "lp":
+                routing = self.optimizer.solve(
+                    subtasks=ready_subtasks,
+                    agents=self.agents,
+                    estimator=self.estimator,
+                    gpu_vram_gb=self.gpu_vram_gb,
+                    loaded_models=set(self.loaded_models),
+                )
+            else:
+                routing = await llm_assign(
+                    ready_subtasks,
+                    self.agents,
+                    self.estimator,
+                    ollama=self.ollama,
+                    planner_model=self.planner_model,
+                    gpu_vram_gb=self.gpu_vram_gb,
+                    loaded_models=set(self.loaded_models),
+                    lambda_token=self.lambda_token,
+                    lambda_switch=self.lambda_switch,
+                    token_scale=self.token_scale,
+                    switch_t_scale_ms=self.switch_t_scale_ms,
+                    planner_timeout_s=self.planner_timeout_s,
+                )
+
+            active_models = set(routing.active_models)
+            models_swapped = sorted(active_models - set(self.loaded_models))
+            total_estimated_switch_ms += sum(by_name[m].load_time_ms for m in models_swapped if m in by_name)
+
+            plan_diag: dict = {
+                "ts_ms": now_ms(),
+                "run_id": self.run_id,
+                "job_id": job_id,
+                "plan_step_index": plan_step_index,
+                "routing_mode": self.routing_mode,
+                "horizon_nodes": layer_ids,
+                "ready_now_nodes": layer_ids,
+                "active_models_before": sorted(self.loaded_models),
+                "gpu_vram_gb": self.gpu_vram_gb,
+            }
+            if hasattr(routing, "lp_solver_name") and routing.lp_solver_name:
+                plan_diag["lp_solver_name"] = routing.lp_solver_name
+            if hasattr(routing, "lp_solve_status") and routing.lp_solve_status:
+                plan_diag["lp_solve_status"] = routing.lp_solve_status
+            if hasattr(routing, "lp_solve_time_ms") and routing.lp_solve_time_ms is not None:
+                plan_diag["lp_solve_time_ms"] = routing.lp_solve_time_ms
+            if getattr(routing, "lp_objective_value", None) is not None:
+                plan_diag["lp_objective_value"] = routing.lp_objective_value
+            plan_diag["assignments"] = [
+                {"subtask_id": a.subtask_id, "assigned_agent": a.agent, "estimated_performance": a.estimated_performance, "estimated_token_cost": a.estimated_token_cost, "estimated_switch_cost_share": a.estimated_switch_cost}
+                for a in routing.assignments
+            ]
+            self.telemetry.log_plan_step(plan_diag)
+
+            self.telemetry.log_orchestration(
+                OrchestrationTelemetry(
+                    event="orchestration",
+                    ts_ms=now_ms(),
+                    run_id=self.run_id,
+                    job_id=job_id,
+                    benchmark_name=benchmark_name,
+                    routing_mode=self.routing_mode,
+                    routing_source=str(getattr(routing, "routing_source", "unknown")),
+                    planner_model=self.planner_model if self.routing_mode == "llm" else None,
+                    assignments=[{"subtask_id": a.subtask_id, "role": ready_subtasks[i].task_type.value if i < len(ready_subtasks) else "", "model": a.agent, "agent_id": f"{ready_subtasks[i].task_type.value if i < len(ready_subtasks) else ''}|{a.agent}"} for i, a in enumerate(routing.assignments)],
+                    active_models=sorted(active_models),
+                    active_role_agents=sorted({f"{s.task_type.value}|{routing.assignments[i].agent}" for i, s in enumerate(ready_subtasks) if i < len(routing.assignments)}),
+                )
+            )
+
+            results = await execute(
+                query=query,
+                subtasks=ready_subtasks,
+                assignments=routing.assignments,
+                ollama=self.ollama,
+                loaded_models_before=set(self.loaded_models),
+                max_concurrency=4,
+            )
+            results_all.extend(results)
+            all_assignments.extend(routing.assignments)
+
+            evals = await evaluate(subtasks=ready_subtasks, results=results, judge=self.judge, ollama=self.ollama, judge_model=self.judge_model)
+            evals_all.extend(evals)
+            eval_by_id = {e.subtask_id: e for e in evals}
+            subtask_by_id = {s.id: s for s in ready_subtasks}
+            agent_by_name = {a.name: a for a in self.agents}
+            for a in routing.assignments:
+                s = subtask_by_id.get(a.subtask_id)
+                if s is None:
+                    continue
+                ev = eval_by_id.get(a.subtask_id)
+                if ev is None:
+                    continue
+                observed = ev.judge_score if ev.judge_score is not None else (1.0 if ev.success else 0.0)
+                ag = agent_by_name.get(a.agent)
+                if ag is not None:
+                    self.estimator.update(agent=ag, subtask_type=s.task_type, observed_score=float(observed))
+
+            self.loaded_models = active_models
+
+            for a in routing.assignments:
+                r = next((x for x in results if x.subtask_id == a.subtask_id), None)
+                ev = eval_by_id.get(a.subtask_id)
+                s = subtask_by_id.get(a.subtask_id)
+                if r is None or s is None:
+                    continue
+                completed.add(a.subtask_id)
+                node = task_dag.nodes.get(a.subtask_id)
+                parents = list(node.depends_on) if node else []
+                children = [cid for cid, n in task_dag.nodes.items() if a.subtask_id in n.depends_on]
+                token_used = (r.prompt_tokens + r.completion_tokens) if isinstance(r.prompt_tokens, int) and isinstance(r.completion_tokens, int) else s.estimated_tokens
+                agent_cost = agent_by_name.get(a.agent).cost_per_token if agent_by_name.get(a.agent) else 1.0
+                subtask_token_cost = float(agent_cost) * float(token_used)
+
+                self.telemetry.log_subtask(
+                    SubtaskTelemetry(
+                        event="subtask",
+                        ts_ms=now_ms(),
+                        run_id=self.run_id,
+                        job_id=job_id,
+                        subtask_id=a.subtask_id,
+                        task_type=s.task_type.value,
+                        difficulty=float(s.difficulty),
+                        estimated_tokens=int(s.estimated_tokens),
+                        assigned_agent=a.agent,
+                        agent_id=f"{s.task_type.value}|{a.agent}",
+                        routing_mode=a.mode,
+                        estimated_performance=float(a.estimated_performance),
+                        estimated_token_cost=float(a.estimated_token_cost),
+                        estimated_switch_cost_norm=float(a.estimated_switch_cost),
+                        swapped_in_for_job=bool(r.swapped_in_for_job),
+                        actual_latency_ms=r.latency_ms,
+                        input_tokens=r.prompt_tokens,
+                        output_tokens=r.completion_tokens,
+                        judge_score=ev.judge_score if ev else None,
+                        benchmark_name=benchmark_name,
+                        benchmark_score=None,
+                        success=bool(r.success),
+                        error=r.error,
+                        output=r.output,
+                    )
+                )
+
+            plan_step_index += 1
+
+        # Benchmark scoring
+        computed_job_score: float | None = None
+        computed_subtask_scores: dict[str, float] = {}
+        if benchmark_name is not None and benchmark_reference:
+            try:
+                ensure_default_benchmarks_loaded()
+                bench = get_benchmark(benchmark_name)
+                ex = BenchmarkExample(benchmark=benchmark_name, example_id=job_id, query=query, reference=benchmark_reference or {})
+                tmp_artifact = {"results": [asdict(r) for r in results_all], "subtasks": [{"id": s.id, "task_type": s.task_type.value, "description": s.description, "estimated_tokens": s.estimated_tokens, "difficulty": s.difficulty} for s in all_subtasks], "benchmark_reference": benchmark_reference or {}}
+                if hasattr(bench, "score_artifact"):
+                    scored = bench.score_artifact(example=ex, artifact=tmp_artifact)  # type: ignore[attr-defined]
+                    computed_job_score = float(scored.get("score", 0.0))
+                    sub_scores = scored.get("subtask_scores")
+                    if isinstance(sub_scores, list):
+                        refs = (benchmark_reference or {}).get("subtasks") if isinstance(benchmark_reference, dict) else None
+                        if isinstance(refs, list) and len(refs) == len(sub_scores):
+                            for ref_s, sc in zip(refs, sub_scores):
+                                computed_subtask_scores[str(ref_s.get("id"))] = float(sc)
+            except Exception:
+                pass
+
+        # Recompute model_task_estimates and oracle for first layer only (simplified)
+        if all_assignments and all_subtasks:
+            model_task_estimates, oracle = _compute_estimates_and_oracle(
+                subtasks=all_subtasks,
+                agents=self.agents,
+                estimator=self.estimator,
+                loaded_models=loaded_before,
+                lambda_token=self.lambda_token,
+                lambda_switch=self.lambda_switch,
+                token_scale=self.token_scale,
+                switch_t_scale_ms=self.switch_t_scale_ms,
+                assignments=all_assignments,
+                lp_objective_value=None,
+            )
+        else:
+            model_task_estimates = []
+            oracle = {}
+
+        assignment_by_subtask = {a.subtask_id: a.agent for a in all_assignments}
+        active_models_final = set()
+        for a in all_assignments:
+            active_models_final.add(a.agent)
+        vram_used = sum(a.vram_gb for a in self.agents if a.name in active_models_final)
+        routing_final = RoutingResult(
+            assignments=all_assignments,
+            active_models=sorted(active_models_final),
+            vram_used_gb=float(vram_used),
+            vram_violation=vram_used > self.gpu_vram_gb + 1e-6,
+            routing_source="lp" if self.routing_mode == "lp" else "llm_planner",
+            loaded_models=sorted(loaded_before),
+        )
+
+        self.telemetry.log_job(
+            JobTelemetry(
+                event="job",
+                ts_ms=now_ms(),
+                run_id=self.run_id,
+                job_id=job_id,
+                query=query,
+                gpu_name=self.gpu_spec.name if self.gpu_spec else None,
+                gpu_uuid=self.gpu_spec.uuid if self.gpu_spec else None,
+                benchmark_name=benchmark_name,
+                routing_mode=self.routing_mode,
+                lambda_token=self.lambda_token,
+                lambda_switch=self.lambda_switch,
+                gpu_vram_gb=self.gpu_vram_gb,
+                vram_used_gb=float(vram_used),
+                vram_violation=bool(vram_used > self.gpu_vram_gb + 1e-6),
+                loaded_models_before=sorted(loaded_before),
+                active_models=sorted(active_models_final),
+                active_roles=sorted({s.task_type.value for s in all_subtasks}),
+                active_role_agents=sorted({f"{s.task_type.value}|{assignment_by_subtask.get(s.id, '')}" for s in all_subtasks if s.id in assignment_by_subtask}),
+                n_distinct_models=len(active_models_final),
+                n_role_agents=len({f"{s.task_type.value}|{assignment_by_subtask.get(s.id, '')}" for s in all_subtasks}),
+                models_swapped_in=sorted(active_models_final - loaded_before),
+                estimated_switch_cost_ms=total_estimated_switch_ms,
+                sum_token_cost=0.0,
+                job_score=computed_job_score,
+                token_scale=self.token_scale,
+                switch_t_scale_ms=self.switch_t_scale_ms,
+            )
+        )
+
+        sum_token_cost = 0.0
+        result_by_subtask = {r.subtask_id: r for r in results_all}
+        for s in all_subtasks:
+            a = next((x for x in all_assignments if x.subtask_id == s.id), None)
+            r = result_by_subtask.get(s.id)
+            if a is None or r is None:
+                continue
+            token_used = (r.prompt_tokens + r.completion_tokens) if isinstance(r.prompt_tokens, int) and isinstance(r.completion_tokens, int) else s.estimated_tokens
+            agent_cost = agent_by_name.get(a.agent).cost_per_token if agent_by_name.get(a.agent) else 1.0
+            sum_token_cost += float(agent_cost) * float(token_used)
+
+        self.telemetry.log_job(
+            JobTelemetry(
+                event="job_costs",
+                ts_ms=now_ms(),
+                run_id=self.run_id,
+                job_id=job_id,
+                query=query,
+                gpu_name=self.gpu_spec.name if self.gpu_spec else None,
+                gpu_uuid=self.gpu_spec.uuid if self.gpu_spec else None,
+                benchmark_name=benchmark_name,
+                routing_mode=self.routing_mode,
+                lambda_token=self.lambda_token,
+                lambda_switch=self.lambda_switch,
+                gpu_vram_gb=self.gpu_vram_gb,
+                vram_used_gb=float(vram_used),
+                vram_violation=bool(vram_used > self.gpu_vram_gb + 1e-6),
+                loaded_models_before=sorted(loaded_before),
+                active_models=sorted(active_models_final),
+                active_roles=sorted({s.task_type.value for s in all_subtasks}),
+                active_role_agents=sorted({f"{s.task_type.value}|{assignment_by_subtask.get(s.id, '')}" for s in all_subtasks}),
+                n_distinct_models=len(active_models_final),
+                n_role_agents=len({f"{s.task_type.value}|{assignment_by_subtask.get(s.id, '')}" for s in all_subtasks}),
+                models_swapped_in=sorted(active_models_final - loaded_before),
+                estimated_switch_cost_ms=total_estimated_switch_ms,
+                sum_token_cost=float(sum_token_cost),
+                job_score=computed_job_score,
+                token_scale=self.token_scale,
+                switch_t_scale_ms=self.switch_t_scale_ms,
+            )
+        )
+
+        n_edges = len([e for n in task_dag.nodes.values() for p in n.depends_on for e in [(p, n.id)] if p in task_dag.nodes])
+        self.telemetry.log_job_dag_summary(
+            {
+                "ts_ms": now_ms(),
+                "run_id": self.run_id,
+                "job_id": job_id,
+                "benchmark_name": benchmark_name,
+                "routing_mode": self.routing_mode,
+                "is_dag": True,
+                "n_nodes": len(task_dag.nodes),
+                "n_edges": n_edges,
+                "n_layers": len(layers),
+                "n_plan_steps": plan_step_index,
+                "total_latency_ms": sum(r.latency_ms or 0 for r in results_all),
+                "total_token_cost": sum_token_cost,
+                "total_switch_cost_est": total_estimated_switch_ms,
+                "avg_subtask_score": float(sum(computed_subtask_scores.values()) / len(computed_subtask_scores)) if computed_subtask_scores else None,
+                "job_success": all(r.success for r in results_all) if results_all else False,
+            }
+        )
+
+        total_latency = sum(r.latency_ms or 0 for r in results_all) if results_all else None
+        total_prompt = sum(r.prompt_tokens or 0 for r in results_all) if results_all else None
+        total_completion = sum(r.completion_tokens or 0 for r in results_all) if results_all else None
+        eval_by_id_final = {e.subtask_id: e for e in evals_all}
+        judge_scores = [e.judge_score for e in evals_all if isinstance(e.judge_score, (int, float))]
+        avg_judge = float(sum(judge_scores) / len(judge_scores)) if judge_scores else None
+        success_rate = float(sum(1.0 if r.success else 0.0 for r in results_all) / len(results_all)) if results_all else 0.0
+
+        plan = [{"id": s.id, "task_type": s.task_type.value, "description": s.description, "estimated_tokens": s.estimated_tokens, "difficulty": float(s.difficulty)} for s in all_subtasks]
+        task_to_model = {a.subtask_id: a.agent for a in all_assignments}
+
+        summary = JobSummary(
+            run_id=self.run_id,
+            job_id=job_id,
+            routing_mode=self.routing_mode,
+            query=query,
+            final_answer=None,
+            benchmark_name=benchmark_name,
+            job_score=computed_job_score,
+            active_models=sorted(active_models_final),
+            models_swapped_in=sorted(active_models_final - loaded_before),
+            estimated_switch_cost_ms=total_estimated_switch_ms,
+            vram_used_gb=float(vram_used),
+            vram_violation=bool(vram_used > self.gpu_vram_gb + 1e-6),
+            total_latency_ms=total_latency,
+            total_prompt_tokens=int(total_prompt) if total_prompt is not None else None,
+            total_completion_tokens=int(total_completion) if total_completion is not None else None,
+            avg_judge_score=avg_judge,
+            success_rate=success_rate,
+            plan=plan,
+            task_to_model=task_to_model,
+            loaded_models=sorted(loaded_before),
+            model_task_estimates=model_task_estimates,
+            oracle=oracle,
+        )
+
+        artifacts_dir = self.run_dir / "artifacts"
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+        (artifacts_dir / f"{job_id}.json").write_text(
+            json.dumps(
+                {
+                    "run_id": self.run_id,
+                    "job_id": job_id,
+                    "routing_mode": self.routing_mode,
+                    "routing_source": getattr(routing_final, "routing_source", "unknown"),
+                    "query": query,
+                    "benchmark_name": benchmark_name,
+                    "benchmark_reference": benchmark_reference,
+                    "subtasks": [{"id": s.id, "task_type": s.task_type.value, "description": s.description, "estimated_tokens": s.estimated_tokens, "difficulty": s.difficulty} for s in all_subtasks],
+                    "assignments": [asdict(a) for a in all_assignments],
+                    "results": [asdict(r) for r in results_all],
+                    "job_score": computed_job_score,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        (self.run_dir / f"summary_{job_id}.json").write_text(json.dumps(asdict(summary), indent=2), encoding="utf-8")
+        (self.run_dir / "summary.json").write_text(json.dumps(asdict(summary), indent=2), encoding="utf-8")
+
+        self.loaded_models = active_models_final
         return summary
 

@@ -105,8 +105,10 @@ The LP chooses which models to load and how to assign subtasks so that quality m
 
 Two built-in benchmarks (deterministic, small):
 
-- `workflowbench`: multi-subtask synthetic workflows
+- `workflowbench`: multi-subtask synthetic workflows (extraction, math, code with optional `--code_eval`)
 - `code_math_mix`: mixed code+math+reasoning+extraction tasks
+
+Scoring uses per-subtask `expected` values (JSON match, numeric match, code execution when `--code_eval`). Artifacts store `model_task_estimates` — the utility matrix (quality, token_cost, switch_cost, utility per agent per subtask) — for analysis.
 
 Run both routing modes and write `report.json` + `report.csv`:
 
@@ -189,12 +191,24 @@ Other factors:
 
 To see LP advantage, run with: higher VRAM (24GB), heterogeneous tasks where specialists clearly outperform, or higher λ_switch where LP’s explicit switch-cost optimization should reduce model swaps.
 
+## Evaluation options
+
+- **`--judge`** — Use an LLM to score each subtask output (0–1) with a rationale. Adds extra Ollama calls. Useful when benchmarks lack strict automated scorers.
+- **`--code_eval`** — For code subtasks (workflowbench, humaneval, mbpp, code_math_mix), run extracted Python in a subprocess against expected outputs. **Executes untrusted code**; use only in trusted environments.
+
+```bash
+swarm bench --benchmark workflowbench --compare both --limit 3 --code_eval
+swarm bench --benchmark code_math_mix --compare both --limit 8 --judge --code_eval
+```
+
 ## Outputs
 
 - **Telemetry**: `runs/<run_id>/telemetry.jsonl` — job, subtask, orchestration, and `subtask_plan` events
-- **Summary**: `runs/<run_id>/summary.json`
+- **Summary**: `runs/<run_id>/summary.json` — per-job summary with `plan`, `task_to_model`, `job_score`, `success_rate`, `models_swapped_in`, `vram_used_gb`, etc.
+- **Artifacts**: `runs/<run_id>/artifacts/<job_id>.json` — full job record: `benchmark_reference` (subtasks with `expected`), `subtasks`, `assignments`, `model_task_estimates` (quality, token_cost, switch_cost, utility per model per subtask), `results` (subtask outputs)
 - **Subtask plan**: `event="subtask_plan"` — the plan fed to LP or LLM before routing (`plan_source`: `benchmark` or `decomposer`)
-- **Subtask outputs**: each subtask event includes `output`; `bench_dir/outputs.jsonl` after `swarm bench` has per-subtask outputs with expected/score
+- **Subtask outputs**: each subtask event includes `output`; `bench_dir/outputs.jsonl` after `swarm bench` has per-subtask outputs with `expected`, `benchmark_score`, `agent`
+- **Report**: `bench_dir/report.json` — aggregated scores by mode (lp/llm): `avg_score`, `avg_models_swapped_in`, `avg_estimated_switch_cost_ms`, `avg_active_model_count`, `avg_vram_used_gb`; `bench_dir/report.csv` for per-example rows
 - **Multi-agent**: `n_distinct_models`, `n_role_agents`, `active_role_agents` in job telemetry
 
 ## Notes

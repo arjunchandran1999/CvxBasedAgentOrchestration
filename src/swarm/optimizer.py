@@ -19,7 +19,7 @@ class OptimizerConfig:
     switch_t_scale_ms: float = 1500.0
     y_active_threshold: float = 0.1
     max_subtasks_per_agent: int | None = None
-    solver: str = "SCS"  # "SCS" is widely available for LPs
+    solver: str = "HIGHS"  # HIGHS preferred; falls back to SCS
 
 
 class SwarmOptimizer:
@@ -86,17 +86,34 @@ class SwarmOptimizer:
         constraints.append(vram @ y <= float(gpu_vram_gb))
 
         problem = cp.Problem(cp.Maximize(obj), constraints)
+        solver_name = self.config.solver
+        solve_status: str | None = None
+        solve_time_ms: float | None = None
 
         try:
-            problem.solve(solver=self.config.solver, verbose=False)
+            problem.solve(solver=cp.HIGHS if solver_name.upper() == "HIGHS" else cp.SCS, verbose=False)
+            solve_status = getattr(problem, "status", None) or str(problem.status) if hasattr(problem, "status") else None
+            if hasattr(problem, "solver_stats") and problem.solver_stats is not None:
+                solve_time_ms = getattr(problem.solver_stats, "solve_time", None)
+                if solve_time_ms is not None:
+                    solve_time_ms = float(solve_time_ms) * 1000.0
         except Exception:
-            return self._fallback(
-                subtasks=subtasks,
-                agents=agents,
-                estimator=estimator,
-                gpu_vram_gb=gpu_vram_gb,
-                loaded_models=loaded_models,
-            )
+            try:
+                problem.solve(solver=cp.SCS, verbose=False)
+                solver_name = "SCS"
+                solve_status = getattr(problem, "status", None) or str(problem.status) if hasattr(problem, "status") else None
+                if hasattr(problem, "solver_stats") and problem.solver_stats is not None:
+                    solve_time_ms = getattr(problem.solver_stats, "solve_time", None)
+                    if solve_time_ms is not None:
+                        solve_time_ms = float(solve_time_ms) * 1000.0
+            except Exception:
+                return self._fallback(
+                    subtasks=subtasks,
+                    agents=agents,
+                    estimator=estimator,
+                    gpu_vram_gb=gpu_vram_gb,
+                    loaded_models=loaded_models,
+                )
 
         if x.value is None or y.value is None:
             return self._fallback(
@@ -149,6 +166,9 @@ class SwarmOptimizer:
             routing_source="lp",
             loaded_models=sorted(loaded_models),
             lp_objective_value=obj_val,
+            lp_solver_name=solver_name,
+            lp_solve_status=str(solve_status) if solve_status is not None else None,
+            lp_solve_time_ms=solve_time_ms,
         )
 
     def _fallback(

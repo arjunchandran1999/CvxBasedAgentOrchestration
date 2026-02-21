@@ -130,19 +130,34 @@ async def run_bench(cfg: BenchConfig, *, console: Console) -> int:
         for idx, ex in enumerate(all_examples, start=1):
             job_id = f"{ex.benchmark}-{idx}"
             bench = get_bench(ex.benchmark)
-            subtasks_override = None
-            if hasattr(bench, "make_subtasks"):
+            task_dag = None
+            if hasattr(bench, "get_task_dag"):
                 try:
-                    subtasks_override = bench.make_subtasks(example=ex)  # type: ignore[attr-defined]
+                    task_dag = bench.get_task_dag(example=ex)  # type: ignore[attr-defined]
                 except Exception:
-                    subtasks_override = None
-            await orch.run_job(
-                query=ex.query,
-                job_id=job_id,
-                benchmark_name=ex.benchmark,
-                benchmark_reference=ex.reference,
-                subtasks_override=subtasks_override,
-            )
+                    task_dag = None
+            if task_dag is not None:
+                await orch.run_job_dag(
+                    task_dag=task_dag,
+                    query=ex.query,
+                    job_id=job_id,
+                    benchmark_name=ex.benchmark,
+                    benchmark_reference=ex.reference,
+                )
+            else:
+                subtasks_override = None
+                if hasattr(bench, "make_subtasks"):
+                    try:
+                        subtasks_override = bench.make_subtasks(example=ex)  # type: ignore[attr-defined]
+                    except Exception:
+                        subtasks_override = None
+                await orch.run_job(
+                    query=ex.query,
+                    job_id=job_id,
+                    benchmark_name=ex.benchmark,
+                    benchmark_reference=ex.reference,
+                    subtasks_override=subtasks_override,
+                )
 
     # Score by reading artifacts and applying benchmark scorers.
     report = aggregate_reports(
