@@ -827,6 +827,8 @@ class SwarmOrchestrator:
                 "active_models_before": sorted(self.loaded_models),
                 "gpu_vram_gb": self.gpu_vram_gb,
             }
+            if self.routing_mode == "lp":
+                plan_diag["lp_dpp_enabled"] = True
             if hasattr(routing, "lp_solver_name") and routing.lp_solver_name:
                 plan_diag["lp_solver_name"] = routing.lp_solver_name
                 lp_solver_names.append(routing.lp_solver_name)
