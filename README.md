@@ -198,13 +198,6 @@ Then run with it:
 swarm bench --benchmark workflowbench --compare both --limit 3 --agents_file configs/agents_auto_fast_local.json
 ```
 
-## Why LP may underperform LLM in some experiments
-
-LP routing optimizes **estimated** performance from capability priors (agent.capabilities per task type), not actual observed performance. In Exp 1 (agents_heavy, 8GB):
-
-- **LP** chose `qwen2.5-coder:7b` (code specialist, highest P−λC under 8GB). Qwen may over-explain math or extraction and produce verbose outputs that fail strict scorers.
-- **LLM** chose `gemma2:2b` (smaller, cheaper). Gemma2 often generalizes better on simple extraction/math/summarize tasks and follows "output only the number" style.
-
 Other factors:
 
 - **8GB VRAM** allows only 1 heavy model. Both LP and LLM must pick a single model; no multi-model specialist routing is possible.
