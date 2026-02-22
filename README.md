@@ -178,6 +178,18 @@ Or run all three via the script:
 ./scripts/run_experiments.sh
 ```
 
+### Full sweep (timestamped, all benchmarks + Pareto)
+
+Runs workflowbench, code_math_mix, and agentic_bench across VRAM/horizon/lambda configs into `runs/<timestamp>_full_sweep/` and writes `meta_report.json` aggregating Pareto metrics:
+
+```bash
+python scripts/run_full_sweep.py
+```
+
+Creates:
+- `runs/<timestamp>_full_sweep/workflowbench/`, `code_math_mix/`, `agentic_bench/` subdirs
+- `meta_report.json` — all `report.json` entries with `mean_score`, `mean_token_cost`, `mean_switch_cost_est`, `mean_peak_vram_used_gb` per (benchmark, routing_mode)
+
 ## Agent presets (fast POC vs heavy)
 
 Agent registries are JSON files passed via `--agents_file`. This makes it easy to move
@@ -224,7 +236,8 @@ swarm bench --benchmark code_math_mix --compare both --limit 8 --judge --code_ev
 - **Subtask plan**: `event="subtask_plan"` — the plan fed to LP or LLM before routing (`plan_source`: `benchmark` or `decomposer`)
 - **Subtask outputs**: each subtask event includes `output`; `bench_dir/outputs.jsonl` after `swarm bench` has per-subtask outputs with `expected`, `benchmark_score`, `agent`
 - **Report**: `bench_dir/report.json` — aggregated scores by mode (lp/llm): `avg_score`, `avg_models_swapped_in`, `avg_estimated_switch_cost_ms`, `avg_active_model_count`, `avg_vram_used_gb`, `score_std`, `vram_violation_rate`, `avg_oracle_gap_pct` (LLM), `avg_lp_objective_value` (LP); `comparison_lp_vs_llm` with `jobs_lp_won`, `jobs_llm_won`, `routing_divergence_pct`, `when_differed_lp_better`; `bench_dir/report.csv` for per-example rows
-- **DAG/MPC**: `dag_structure`, `plan_step`, `job_dag_summary` events in telemetry when running workflowbench (or any benchmark with `get_task_dag`)
+- **Pareto**: `report.json` also has `aggregates`, `pareto_data`, `pareto_frontier_indices` (score vs token/switch/VRAM); `report_pareto.csv` for plotting
+- **DAG/MPC**: `dag_structure`, `plan_step`, `job_dag_summary` events in telemetry when running workflowbench or agentic_bench (or any benchmark with `get_task_dag`)
 - **Multi-agent**: `n_distinct_models`, `n_role_agents`, `active_role_agents` in job telemetry
 
 ## Notes

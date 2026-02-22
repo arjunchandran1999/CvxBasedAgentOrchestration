@@ -438,6 +438,109 @@ def aggregate_reports(*, bench_dir: Path, run_dirs: dict[str, Path], benchmarks:
 
         report["comparison_lp_vs_llm"] = comparison
 
+    # Pareto frontier aggregates and data
+    bench_config: dict[str, Any] = {}
+    config_path = bench_dir / "bench_config.json"
+    if config_path.exists():
+        try:
+            bench_config = _read_json(config_path)
+        except Exception:
+            pass
+
+    lambda_token = float(bench_config.get("lambda_token", 0.5))
+    lambda_switch = float(bench_config.get("lambda_switch", 0.2))
+    horizon_depth = int(bench_config.get("horizon_depth", 1))
+    quality_estimator_type = str(bench_config.get("quality_estimator_type", "static"))
+
+    report["aggregates"] = {}
+    report["pareto_data"] = {}
+    report["pareto_frontier_indices"] = {}
+
+    for bench_name in set(e.benchmark for e in examples):
+        report["aggregates"][bench_name] = {}
+        pareto_points: list[dict[str, Any]] = []
+        for mode, mode_data in report["modes"].items():
+            by_bench = mode_data.get("by_benchmark") or {}
+            mean_score = by_bench.get(bench_name) if by_bench else mode_data.get("avg_score")
+            mean_token = None
+            mean_switch = None
+            mean_vram = mode_data.get("avg_vram_used_gb")
+            score_std = mode_data.get("score_std")
+            # Get token/switch from mode-level or compute from rows
+            bench_rows = [r for r in rows if r.get("benchmark") == bench_name and r.get("routing_mode") == mode]
+            if bench_rows:
+                tok_vals = [r.get("sum_token_cost") for r in bench_rows if isinstance(r.get("sum_token_cost"), (int, float))]
+                switch_vals = [r.get("estimated_switch_cost_ms") for r in bench_rows if isinstance(r.get("estimated_switch_cost_ms"), (int, float))]
+                mean_token = sum(tok_vals) / len(tok_vals) if tok_vals else None
+                mean_switch = sum(switch_vals) / len(switch_vals) if switch_vals else None
+            agg = {
+                "mean_score": mean_score,
+                "mean_token_cost": mean_token,
+                "mean_switch_cost_est": mean_switch,
+                "mean_peak_vram_used_gb": mean_vram,
+                "score_std": score_std,
+            }
+            report["aggregates"][bench_name][mode] = agg
+            pt = {
+                "routing_mode": mode,
+                "lambda_token": lambda_token,
+                "lambda_switch": lambda_switch,
+                "horizon_depth": horizon_depth,
+                "quality_estimator_type": quality_estimator_type,
+                "mean_score": mean_score,
+                "mean_token_cost": mean_token,
+                "mean_switch_cost_est": mean_switch,
+                "mean_peak_vram_used_gb": mean_vram,
+            }
+            if pt["mean_score"] is not None:
+                pareto_points.append(pt)
+        report["pareto_data"][bench_name] = pareto_points
+
+        # Pareto frontier: non-dominated (score vs cost). Sort by token_cost asc, keep max score so far.
+        if pareto_points:
+            by_token = sorted(
+                [(i, p) for i, p in enumerate(pareto_points) if p.get("mean_token_cost") is not None],
+                key=lambda x: (x[1].get("mean_token_cost") or float("inf"), -(x[1].get("mean_score") or 0)),
+            )
+            frontier: list[int] = []
+            best_score = -float("inf")
+            for i, p in by_token:
+                s = p.get("mean_score") or 0
+                if s >= best_score:
+                    best_score = s
+                    if i not in frontier:
+                        frontier.append(i)
+            report["pareto_frontier_indices"][bench_name] = frontier
+
+    # Pareto CSV (append columns to existing rows)
+    pareto_csv_path = bench_dir / "report_pareto.csv"
+    if rows and report.get("pareto_data"):
+        pareto_fieldnames = [
+            "benchmark_name", "routing_mode", "lambda_token", "lambda_switch", "horizon_depth",
+            "quality_estimator_type", "mean_score", "mean_token_cost", "mean_switch_cost_est", "mean_peak_vram_used_gb",
+        ]
+        pareto_rows: list[dict[str, Any]] = []
+        for bench_name, points in report["pareto_data"].items():
+            for p in points:
+                pareto_rows.append({
+                    "benchmark_name": bench_name,
+                    "routing_mode": p.get("routing_mode", ""),
+                    "lambda_token": p.get("lambda_token"),
+                    "lambda_switch": p.get("lambda_switch"),
+                    "horizon_depth": p.get("horizon_depth"),
+                    "quality_estimator_type": p.get("quality_estimator_type"),
+                    "mean_score": p.get("mean_score"),
+                    "mean_token_cost": p.get("mean_token_cost"),
+                    "mean_switch_cost_est": p.get("mean_switch_cost_est"),
+                    "mean_peak_vram_used_gb": p.get("mean_peak_vram_used_gb"),
+                })
+        if pareto_rows:
+            with pareto_csv_path.open("w", encoding="utf-8", newline="") as f:
+                w = csv.DictWriter(f, fieldnames=pareto_fieldnames)
+                w.writeheader()
+                w.writerows(pareto_rows)
+            report["report_pareto_csv"] = str(pareto_csv_path)
+
     # Write CSV
     if rows:
         csv_path = bench_dir / "report.csv"

@@ -761,6 +761,8 @@ class SwarmOrchestrator:
         model_task_estimates: list[dict] = []
         oracle: dict = {}
         peak_vram_gb = 0.0  # Peak concurrent VRAM (max over plan steps), not sum of distinct models
+        lp_solve_times_ms: list[float] = []
+        lp_solver_names: list[str] = []
 
         while completed < all_node_ids:
             ready_now = [
@@ -827,10 +829,12 @@ class SwarmOrchestrator:
             }
             if hasattr(routing, "lp_solver_name") and routing.lp_solver_name:
                 plan_diag["lp_solver_name"] = routing.lp_solver_name
+                lp_solver_names.append(routing.lp_solver_name)
             if hasattr(routing, "lp_solve_status") and routing.lp_solve_status:
                 plan_diag["lp_solve_status"] = routing.lp_solve_status
             if hasattr(routing, "lp_solve_time_ms") and routing.lp_solve_time_ms is not None:
                 plan_diag["lp_solve_time_ms"] = routing.lp_solve_time_ms
+                lp_solve_times_ms.append(float(routing.lp_solve_time_ms))
             if getattr(routing, "lp_objective_value", None) is not None:
                 plan_diag["lp_objective_value"] = routing.lp_objective_value
             plan_diag["assignments"] = [
@@ -1065,29 +1069,35 @@ class SwarmOrchestrator:
         )
 
         n_edges = len([e for n in task_dag.nodes.values() for p in n.depends_on for e in [(p, n.id)] if p in task_dag.nodes])
-        self.telemetry.log_job_dag_summary(
-            {
-                "ts_ms": now_ms(),
-                "run_id": self.run_id,
-                "job_id": job_id,
-                "benchmark_name": benchmark_name,
-                "routing_mode": self.routing_mode,
-                "is_dag": True,
-                "mpc": h_depth > 0,
-                "horizon_depth": h_depth,
-                "n_nodes": len(task_dag.nodes),
-                "n_edges": n_edges,
-                "n_layers": len(layers),
-                "n_plan_steps": plan_step_index,
-                "vram_peak_gb": round(vram_used, 3),
-                "vram_distinct_gb": round(vram_distinct_gb, 3),
-                "total_latency_ms": sum(r.latency_ms or 0 for r in results_all),
-                "total_token_cost": sum_token_cost,
-                "total_switch_cost_est": total_estimated_switch_ms,
-                "avg_subtask_score": float(sum(computed_subtask_scores.values()) / len(computed_subtask_scores)) if computed_subtask_scores else None,
-                "job_success": all(r.success for r in results_all) if results_all else False,
-            }
-        )
+        job_dag_payload: dict = {
+            "ts_ms": now_ms(),
+            "run_id": self.run_id,
+            "job_id": job_id,
+            "benchmark_name": benchmark_name,
+            "routing_mode": self.routing_mode,
+            "quality_estimator_type": "static",  # Pareto: static vs learned
+            "is_dag": True,
+            "mpc": h_depth > 0,
+            "horizon_depth": h_depth,
+            "n_nodes": len(task_dag.nodes),
+            "n_edges": n_edges,
+            "n_layers": len(layers),
+            "n_plan_steps": plan_step_index,
+            "vram_peak_gb": round(vram_used, 3),
+            "peak_vram_used_gb": round(vram_used, 3),  # Pareto: alias
+            "vram_distinct_gb": round(vram_distinct_gb, 3),
+            "total_latency_ms": sum(r.latency_ms or 0 for r in results_all),
+            "total_token_cost": sum_token_cost,
+            "total_switch_cost_est": total_estimated_switch_ms,
+            "avg_subtask_score": float(sum(computed_subtask_scores.values()) / len(computed_subtask_scores)) if computed_subtask_scores else None,
+            "job_score": computed_job_score,
+            "job_success": all(r.success for r in results_all) if results_all else False,
+        }
+        if lp_solver_names:
+            job_dag_payload["lp_solver_name"] = lp_solver_names[-1]  # last step
+        if lp_solve_times_ms:
+            job_dag_payload["lp_solve_time_ms_avg"] = round(sum(lp_solve_times_ms) / len(lp_solve_times_ms), 4)
+        self.telemetry.log_job_dag_summary(job_dag_payload)
 
         total_latency = sum(r.latency_ms or 0 for r in results_all) if results_all else None
         total_prompt = sum(r.prompt_tokens or 0 for r in results_all) if results_all else None

@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Run experiments from: Experiments to Differentiate LP vs LLM Planner Routing
+# Run experiments: LP vs LLM Planner Routing
 # Execute from project root: ./scripts/run_experiments.sh
+#
+# Full sweep (all benchmarks, timestamped): python scripts/run_full_sweep.py
+# Creates runs/<timestamp>_full_sweep/ with meta_report.json (Pareto metrics).
 
 set -e
 cd "$(dirname "$0")/.."
-mkdir -p experiments
+mkdir -p experiments runs
 
 echo "=== Exp 1: VRAM stress (agents_heavy, gpu=8) ==="
 swarm bench --benchmark workflowbench --agents_file configs/agents_heavy.json \
@@ -40,4 +43,7 @@ for lt in 0.1 0.5 1.0; do
     --output_dir "experiments/exp5_token_sweep/lt${lt}"
 done
 
+echo "=== Full sweep (optional) ==="
+echo "  python scripts/run_full_sweep.py  # timestamped runs/<ts>_full_sweep/ + meta_report.json"
+echo ""
 echo "=== All experiments completed ==="
