@@ -760,6 +760,7 @@ class SwarmOrchestrator:
         all_assignments: list[Assignment] = []
         model_task_estimates: list[dict] = []
         oracle: dict = {}
+        peak_vram_gb = 0.0  # Peak concurrent VRAM (max over plan steps), not sum of distinct models
 
         while completed < all_node_ids:
             ready_now = [
@@ -802,6 +803,11 @@ class SwarmOrchestrator:
 
             ready_assignments = [a for a in routing.assignments if a.subtask_id in ready_now]
 
+            # Peak VRAM: max concurrent at any step (models used in this step may run in parallel)
+            step_models = {a.agent for a in ready_assignments}
+            step_vram = sum(by_name[m].vram_gb for m in step_models if m in by_name)
+            peak_vram_gb = max(peak_vram_gb, step_vram)
+
             active_models = set(routing.active_models)
             models_swapped = sorted(active_models - set(self.loaded_models))
             total_estimated_switch_ms += sum(by_name[m].load_time_ms for m in models_swapped if m in by_name)
@@ -835,6 +841,7 @@ class SwarmOrchestrator:
                 {"subtask_id": a.subtask_id, "assigned_agent": a.agent}
                 for a in ready_assignments
             ]
+            plan_diag["step_vram_gb"] = round(step_vram, 3)
             self.telemetry.log_plan_step(plan_diag)
 
             self.telemetry.log_orchestration(
@@ -971,11 +978,14 @@ class SwarmOrchestrator:
         active_models_final = set()
         for a in all_assignments:
             active_models_final.add(a.agent)
-        vram_used = sum(a.vram_gb for a in self.agents if a.name in active_models_final)
+        # Use peak concurrent VRAM (max over plan steps), not sum of distinct models.
+        # For DAG execution we swap models between steps; peak = max per-step concurrent load.
+        vram_distinct_gb = sum(a.vram_gb for a in self.agents if a.name in active_models_final)
+        vram_used = float(peak_vram_gb) if peak_vram_gb > 0 else float(vram_distinct_gb)
         routing_final = RoutingResult(
             assignments=all_assignments,
             active_models=sorted(active_models_final),
-            vram_used_gb=float(vram_used),
+            vram_used_gb=vram_used,
             vram_violation=vram_used > self.gpu_vram_gb + 1e-6,
             routing_source="lp" if self.routing_mode == "lp" else "llm_planner",
             loaded_models=sorted(loaded_before),
@@ -1069,6 +1079,8 @@ class SwarmOrchestrator:
                 "n_edges": n_edges,
                 "n_layers": len(layers),
                 "n_plan_steps": plan_step_index,
+                "vram_peak_gb": round(vram_used, 3),
+                "vram_distinct_gb": round(vram_distinct_gb, 3),
                 "total_latency_ms": sum(r.latency_ms or 0 for r in results_all),
                 "total_token_cost": sum_token_cost,
                 "total_switch_cost_est": total_estimated_switch_ms,

@@ -139,6 +139,8 @@ swarm bench --benchmark code_math_mix --compare both --limit 8
 
 ## Experiments (LP vs LLM sweeps)
 
+See [experiments/PRESENTATION.md](experiments/PRESENTATION.md) for detailed analysis of exp1 results, LP pros/cons, and presentation material.
+
 **Experiment 1 — VRAM stress** (agents_heavy, 8GB, workflowbench with MPC):
 
 ```bash
