@@ -1,0 +1,7 @@
+routing_mode,benchmark,example_id,job_id,metric,score,active_models,active_roles,active_role_agents,models_swapped_in,estimated_switch_cost_ms,vram_used_gb,vram_violation,sum_token_cost,gpu_name,total_latency_ms,total_prompt_tokens,total_completion_tokens,score_per_token_cost,vram_utilization,lp_objective_value,chosen_utility,total_cost_est,utility_efficiency,oracle_gap_pct
+lp,workflowbench,wb1,workflowbench-1,job_score,1.0,1,3,3,1,1200.0,6.5,False,547.1999999999999,NVIDIA A40,5082.467334810644,214,242,0.001827,0.1354,,,548.4,,
+lp,workflowbench,wb2,workflowbench-2,job_score,0.8888888888888888,1,3,3,0,0.0,6.5,False,1160.3999999999999,NVIDIA A40,10409.138235729188,210,757,0.000766,0.1354,,,1160.4,,
+lp,workflowbench,wb3,workflowbench-3,job_score,0.3333333333333333,1,3,3,0,0.0,6.5,False,285.6,NVIDIA A40,1846.1802485398948,202,36,0.001167,0.1354,,,285.6,,
+llm,workflowbench,wb1,workflowbench-1,job_score,1.0,3,3,3,3,4200.0,21.0,False,607.6,NVIDIA A40,119077.93953223154,219,210,0.001646,0.4375,,,611.8,,
+llm,workflowbench,wb2,workflowbench-2,job_score,0.8888888888888888,2,3,3,0,0.0,19.0,False,1818.4,NVIDIA A40,26563.375532627106,215,825,0.000489,0.3958,,,1818.4,,
+llm,workflowbench,wb3,workflowbench-3,job_score,0.3333333333333333,1,3,3,0,0.0,12.5,False,1674.0,NVIDIA A40,12722.691057249904,203,634,0.000199,0.2604,,,1674.0,,

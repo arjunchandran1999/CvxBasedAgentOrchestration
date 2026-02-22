@@ -1,0 +1,131 @@
+{
+  "run_id": "20260221-235849-12139-llm",
+  "job_id": "workflowbench-2",
+  "routing_mode": "llm",
+  "routing_source": "llm_planner",
+  "query": "WorkflowBench job wb2",
+  "benchmark_name": "workflowbench",
+  "benchmark_reference": {
+    "job_id": "wb2",
+    "subtasks": [
+      {
+        "id": "s0",
+        "task_type": "code",
+        "description": "Write Python: def fib(n): return nth Fibonacci with fib(0)=0,fib(1)=1. Return ONLY code.",
+        "expected": {
+          "entry_point": "fib",
+          "value": 55
+        },
+        "estimated_tokens": 450,
+        "difficulty": 3.0
+      },
+      {
+        "id": "s1",
+        "task_type": "math",
+        "description": "Compute fib(10) if fib(0)=0, fib(1)=1. Output only the number.",
+        "expected": 55,
+        "estimated_tokens": 120,
+        "difficulty": 2.0
+      },
+      {
+        "id": "s2",
+        "task_type": "summarize",
+        "description": "In 1-2 sentences, explain how Fibonacci works (recurrence).",
+        "expected": {
+          "keywords": [
+            "fib",
+            "previous",
+            "sum"
+          ]
+        },
+        "estimated_tokens": 180,
+        "difficulty": 2.0
+      }
+    ]
+  },
+  "subtasks": [
+    {
+      "id": "s0",
+      "task_type": "code",
+      "description": "Write Python: def fib(n): return nth Fibonacci with fib(0)=0,fib(1)=1. Return ONLY code.",
+      "estimated_tokens": 450,
+      "difficulty": 3.0
+    },
+    {
+      "id": "s1",
+      "task_type": "math",
+      "description": "Compute fib(10) if fib(0)=0, fib(1)=1. Output only the number.",
+      "estimated_tokens": 120,
+      "difficulty": 2.0
+    },
+    {
+      "id": "s2",
+      "task_type": "summarize",
+      "description": "In 1-2 sentences, explain how Fibonacci works (recurrence).",
+      "estimated_tokens": 180,
+      "difficulty": 2.0
+    }
+  ],
+  "assignments": [
+    {
+      "subtask_id": "s0",
+      "agent": "qwen2.5-coder:7b",
+      "mode": "fallback",
+      "estimated_performance": 0.7600000000000001,
+      "estimated_token_cost": 540.0,
+      "estimated_switch_cost": 0.0
+    },
+    {
+      "subtask_id": "s1",
+      "agent": "phi4:14b",
+      "mode": "fallback",
+      "estimated_performance": 0.8600000000000001,
+      "estimated_token_cost": 240.0,
+      "estimated_switch_cost": 0.0
+    },
+    {
+      "subtask_id": "s2",
+      "agent": "phi4:14b",
+      "mode": "fallback",
+      "estimated_performance": 0.6399999999999999,
+      "estimated_token_cost": 360.0,
+      "estimated_switch_cost": 0.0
+    }
+  ],
+  "results": [
+    {
+      "subtask_id": "s0",
+      "agent": "qwen2.5-coder:7b",
+      "output": "```python\ndef fib(n):\n    if n == 0:\n        return 0\n    elif n == 1:\n        return 1\n    else:\n        a, b = 0, 1\n        for _ in range(2, n + 1):\n            a, b = b, a + b\n        return b\n```\n\n### Explanation:\nThis function calculates the nth Fibonacci number using an iterative approach. The Fibonacci sequence is defined as follows: `fib(0) = 0`, `fib(1) = 1`, and for `n > 1`, `fib(n) = fib(n-1) + fib(n-2)`.\n\nThe function starts by checking if `n` is 0 or 1, returning the corresponding value directly. For other values of `n`, it initializes two variables `a` and `b` to represent the first two Fibonacci numbers (0 and 1, respectively). It then iterates from 2 to `n`, updating `a` and `b` to hold the last two Fibonacci numbers in each iteration until it reaches `n`. Finally, it returns the value of `b`, which is the nth Fibonacci number.",
+      "latency_ms": 5409.219863358885,
+      "prompt_tokens": 78,
+      "completion_tokens": 249,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    },
+    {
+      "subtask_id": "s1",
+      "agent": "phi4:14b",
+      "output": "To compute \\( \\text{fib}(10) \\), we need to use the definition of the Fibonacci sequence where:\n\n- \\( \\text{fib}(0) = 0 \\)\n- \\( \\text{fib}(1) = 1 \\)\n\nFor \\( n \\geq 2 \\), the Fibonacci number is defined as:\n\\[ \\text{fib}(n) = \\text{fib}(n-1) + \\text{fib}(n-2) \\]\n\nLet's compute each Fibonacci number up to \\( \\text{fib}(10) \\):\n\n\\[\n\\begin{align*}\n\\text{fib}(0) & = 0, \\\\\n\\text{fib}(1) & = 1, \\\\\n\\text{fib}(2) & = \\text{fib}(1) + \\text{fib}(0) = 1 + 0 = 1, \\\\\n\\text{fib}(3) & = \\text{fib}(2) + \\text{fib}(1) = 1 + 1 = 2, \\\\\n\\text{fib}(4) & = \\text{fib}(3) + \\text{fib}(2) = 2 + 1 = 3, \\\\\n\\text{fib}(5) & = \\text{fib}(4) + \\text{fib}(3) = 3 + 2 = 5, \\\\\n\\text{fib}(6) & = \\text{fib}(5) + \\text{fib}(4) = 5 + 3 = 8, \\\\\n\\text{fib}(7) & = \\text{fib}(6) + \\text{fib}(5) = 8 + 5 = 13, \\\\\n\\text{fib}(8) & = \\text{fib}(7) + \\text{fib}(6) = 13 + 8 = 21, \\\\\n\\text{fib}(9) & = \\text{fib}(8) + \\text{fib}(7) = 21 + 13 = 34, \\\\\n\\text{fib}(10) & = \\text{fib}(9) + \\text{fib}(8) = 34 + 21 = 55.\n\\end{align*}\n\\]\n\nThus, the value of \\( \\text{fib}(10) \\) is \\( 55 \\).",
+      "latency_ms": 9831.409759353846,
+      "prompt_tokens": 74,
+      "completion_tokens": 495,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    },
+    {
+      "subtask_id": "s2",
+      "agent": "phi4:14b",
+      "output": "The Fibonacci sequence is defined by a recurrence relation where each number is the sum of the two preceding ones, typically starting with 0 and 1. Mathematically, it's expressed as \\( F(n) = F(n-1) + F(n-2) \\), with initial conditions \\( F(0) = 0 \\) and \\( F(1) = 1 \\).",
+      "latency_ms": 11322.745909914374,
+      "prompt_tokens": 63,
+      "completion_tokens": 81,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    }
+  ],
+  "job_score": 0.8888888888888888
+}
