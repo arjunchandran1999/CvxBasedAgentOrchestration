@@ -7,10 +7,27 @@ End-to-end MVP to compare exactly two routing modes:
 
 Telemetry is written as JSONL so you can quantify quality/cost/switching differences.
 
+## One-command setup (new Linux host)
+
+Clone the repo, install Ollama, pull all required models, and install the Python package:
+
+```bash
+bash -c 'git clone https://github.com/arjunchandran1999/CvxBasedAgentOrchestration.git && cd CvxBasedAgentOrchestration && ./scripts/setup.sh'
+```
+
+Then activate and run:
+
+```bash
+cd CvxBasedAgentOrchestration && source .venv/bin/activate
+swarm run --routing lp --gpu_vram_gb 24 --query "Hello, world!"
+```
+
+Requires: `git`, `curl`, `python3` (3.10+). Uses `uv` if available, else `pip`.
+
 ## Quickstart (uv)
 
 ```bash
-cd /home/adevc/cvxpyHackathon
+cd CvxBasedAgentOrchestration   # or your clone path
 uv venv
 source .venv/bin/activate
 uv pip install -e .
