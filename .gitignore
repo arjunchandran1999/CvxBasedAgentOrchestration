@@ -27,7 +27,6 @@ htmlcov/
 # Generated runs / telemetry (project defaults)
 runs/
 bench_runs/
-experiments/
 *.log
 *.jsonl
 

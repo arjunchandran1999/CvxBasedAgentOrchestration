@@ -1,0 +1,34 @@
+{
+  "bench_dir": "experiments/exp1_mpc_test/20260221-154112-1363237",
+  "n_examples": 1,
+  "modes": {
+    "lp": {
+      "n_scored": 1,
+      "avg_score": 0.6666666666666666,
+      "by_benchmark": {
+        "workflowbench": 0.6666666666666666
+      },
+      "avg_models_swapped_in": 1.0,
+      "avg_estimated_switch_cost_ms": 1600.0,
+      "avg_active_model_count": 1.0,
+      "avg_vram_used_gb": 8.0,
+      "run_dir": "experiments/exp1_mpc_test/20260221-154112-1363237/runs/20260221-154112-1363237-lp",
+      "vram_violation_rate": 0.0,
+      "vram_violation_count": 0,
+      "score_min": 0.6666666666666666,
+      "score_max": 0.6666666666666666,
+      "avg_total_cost_est": 311.0,
+      "avg_total_latency_ms": 15.0,
+      "total_latency_ms_sum": 15.0,
+      "avg_total_prompt_tokens": 107.0,
+      "total_prompt_tokens_sum": 107,
+      "avg_total_completion_tokens": 114.0,
+      "total_completion_tokens_sum": 114,
+      "avg_score_per_token_cost": 0.0021547080370609784,
+      "avg_lp_solve_time_ms": 1.2676715850830078,
+      "total_lp_solve_time_ms": 1.2676715850830078
+    }
+  },
+  "report_csv": "experiments/exp1_mpc_test/20260221-154112-1363237/report.csv",
+  "outputs_jsonl": "experiments/exp1_mpc_test/20260221-154112-1363237/outputs.jsonl"
+}

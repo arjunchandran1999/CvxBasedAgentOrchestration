@@ -1,0 +1,39 @@
+{
+  "exp_id": "20260221-134728-1076603",
+  "suite": "code_math_sweep",
+  "lambda_switches": [
+    0.0,
+    0.2,
+    0.5,
+    1.0
+  ],
+  "gpu_vrams": [
+    8.0
+  ],
+  "runs": [
+    {
+      "bench_id": "20260221-134728-1076603-ls0.0-vram8.0",
+      "lambda_switch": 0.0,
+      "gpu_vram_gb": 8.0,
+      "report": "experiments/exp2_switch_sweep/20260221-134728-1076603/bench_runs/20260221-134728-1076603-ls0.0-vram8.0/report.json"
+    },
+    {
+      "bench_id": "20260221-134728-1076603-ls0.2-vram8.0",
+      "lambda_switch": 0.2,
+      "gpu_vram_gb": 8.0,
+      "report": "experiments/exp2_switch_sweep/20260221-134728-1076603/bench_runs/20260221-134728-1076603-ls0.2-vram8.0/report.json"
+    },
+    {
+      "bench_id": "20260221-134728-1076603-ls0.5-vram8.0",
+      "lambda_switch": 0.5,
+      "gpu_vram_gb": 8.0,
+      "report": "experiments/exp2_switch_sweep/20260221-134728-1076603/bench_runs/20260221-134728-1076603-ls0.5-vram8.0/report.json"
+    },
+    {
+      "bench_id": "20260221-134728-1076603-ls1.0-vram8.0",
+      "lambda_switch": 1.0,
+      "gpu_vram_gb": 8.0,
+      "report": "experiments/exp2_switch_sweep/20260221-134728-1076603/bench_runs/20260221-134728-1076603-ls1.0-vram8.0/report.json"
+    }
+  ]
+}

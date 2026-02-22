@@ -1,0 +1,32 @@
+{
+  "bench_dir": "experiments/exp1_vram_stress/20260221-145919-1227883",
+  "n_examples": 1,
+  "modes": {
+    "lp": {
+      "n_scored": 1,
+      "avg_score": 0.6666666666666666,
+      "by_benchmark": {
+        "workflowbench": 0.6666666666666666
+      },
+      "avg_models_swapped_in": 3.0,
+      "avg_estimated_switch_cost_ms": 4200.0,
+      "avg_active_model_count": 3.0,
+      "avg_vram_used_gb": 21.0,
+      "run_dir": "experiments/exp1_vram_stress/20260221-145919-1227883/runs/20260221-145919-1227883-lp"
+    },
+    "llm": {
+      "n_scored": 1,
+      "avg_score": 0.6666666666666666,
+      "by_benchmark": {
+        "workflowbench": 0.6666666666666666
+      },
+      "avg_models_swapped_in": 1.0,
+      "avg_estimated_switch_cost_ms": 600.0,
+      "avg_active_model_count": 1.0,
+      "avg_vram_used_gb": 2.0,
+      "run_dir": "experiments/exp1_vram_stress/20260221-145919-1227883/runs/20260221-145919-1227883-llm"
+    }
+  },
+  "report_csv": "experiments/exp1_vram_stress/20260221-145919-1227883/report.csv",
+  "outputs_jsonl": "experiments/exp1_vram_stress/20260221-145919-1227883/outputs.jsonl"
+}
