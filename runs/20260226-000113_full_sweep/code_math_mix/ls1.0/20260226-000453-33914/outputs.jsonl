@@ -1,0 +1,8 @@
+{"routing_mode": "lp", "job_id": "code_math_mix-1", "example_id": "t_add", "subtask_id": "t_add", "output": "", "expected": null, "benchmark_score": null, "agent": "tinyllama:latest"}
+{"routing_mode": "lp", "job_id": "code_math_mix-2", "example_id": "t_pal", "subtask_id": "t_pal", "output": "", "expected": null, "benchmark_score": null, "agent": "tinyllama:latest"}
+{"routing_mode": "lp", "job_id": "code_math_mix-3", "example_id": "t_math1", "subtask_id": "t_math1", "output": "", "expected": null, "benchmark_score": null, "agent": "tinyllama:latest"}
+{"routing_mode": "lp", "job_id": "code_math_mix-4", "example_id": "t_math2", "subtask_id": "t_math2", "output": "", "expected": null, "benchmark_score": null, "agent": "tinyllama:latest"}
+{"routing_mode": "llm", "job_id": "code_math_mix-1", "example_id": "t_add", "subtask_id": "t_add", "output": "", "expected": null, "benchmark_score": null, "agent": "tinyllama:latest"}
+{"routing_mode": "llm", "job_id": "code_math_mix-2", "example_id": "t_pal", "subtask_id": "t_pal", "output": "", "expected": null, "benchmark_score": null, "agent": "tinyllama:latest"}
+{"routing_mode": "llm", "job_id": "code_math_mix-3", "example_id": "t_math1", "subtask_id": "t_math1", "output": "", "expected": null, "benchmark_score": null, "agent": "phi3:mini"}
+{"routing_mode": "llm", "job_id": "code_math_mix-4", "example_id": "t_math2", "subtask_id": "t_math2", "output": "Here's how to compute 17 * 6:\n\n**Steps:**\n\n1. **Multiplication:**  Multiply 17 by 6 using traditional multiplication methods.\n   * 17 * 6 = 102\n\n**Final Answer:** 102 \n", "expected": null, "benchmark_score": null, "agent": "gemma2:2b"}

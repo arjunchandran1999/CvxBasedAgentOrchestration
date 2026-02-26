@@ -1,0 +1,131 @@
+{
+  "run_id": "20260226-000530-34426-llm",
+  "job_id": "code_math_mix-3",
+  "routing_mode": "llm",
+  "routing_source": "fallback",
+  "query": "John has 3 apples and buys 4 more. How many apples now? Output only the number.",
+  "benchmark_name": "code_math_mix",
+  "benchmark_reference": {
+    "task_id": "t_math1",
+    "task_type": "math",
+    "expected": 7,
+    "estimated_tokens": 120,
+    "difficulty": 1.0
+  },
+  "subtasks": [
+    {
+      "id": "t_math1",
+      "task_type": "math",
+      "description": "John has 3 apples and buys 4 more. How many apples now? Output only the number.",
+      "estimated_tokens": 120,
+      "difficulty": 1.0
+    }
+  ],
+  "assignments": [
+    {
+      "subtask_id": "t_math1",
+      "agent": "gemma2:2b",
+      "mode": "fallback",
+      "estimated_performance": 0.45,
+      "estimated_token_cost": 42.0,
+      "estimated_switch_cost": 0.0
+    }
+  ],
+  "orchestration": {
+    "routing_mode": "llm",
+    "routing_source": "fallback",
+    "planner_model": "llama3.1:8b",
+    "assignments": [
+      {
+        "subtask_id": "t_math1",
+        "role": "math",
+        "model": "gemma2:2b",
+        "agent_id": "math|gemma2:2b"
+      }
+    ],
+    "active_models": [
+      "gemma2:2b"
+    ],
+    "active_role_agents": [
+      "math|gemma2:2b"
+    ]
+  },
+  "results": [
+    {
+      "subtask_id": "t_math1",
+      "agent": "gemma2:2b",
+      "output": "7 \n",
+      "latency_ms": 280.08670918643475,
+      "prompt_tokens": 87,
+      "completion_tokens": 4,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    }
+  ],
+  "evaluations": [
+    {
+      "subtask_id": "t_math1",
+      "success": true,
+      "judge_score": null,
+      "judge_rationale": null
+    }
+  ],
+  "final_answer": null,
+  "active_models": [
+    "gemma2:2b"
+  ],
+  "active_roles": [
+    "math"
+  ],
+  "active_role_agents": [
+    "math|gemma2:2b"
+  ],
+  "loaded_models_before": [
+    "gemma2:2b"
+  ],
+  "loaded_models_at_router": [
+    "gemma2:2b"
+  ],
+  "model_task_estimates": [
+    {
+      "subtask_id": "t_math1",
+      "model": "tinyllama:latest",
+      "quality": 0.35,
+      "token_cost": 30.0,
+      "switch_cost": 0.3,
+      "utility_cell": 0.335,
+      "utility": 0.185
+    },
+    {
+      "subtask_id": "t_math1",
+      "model": "gemma2:2b",
+      "quality": 0.45,
+      "token_cost": 42.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.429,
+      "utility": 0.429
+    },
+    {
+      "subtask_id": "t_math1",
+      "model": "phi3:mini",
+      "quality": 0.65,
+      "token_cost": 72.0,
+      "switch_cost": 0.5333,
+      "utility_cell": 0.614,
+      "utility": 0.3473
+    }
+  ],
+  "oracle": {
+    "best_per_task_by_quality": {
+      "t_math1": "phi3:mini"
+    },
+    "best_per_task_by_utility": {
+      "t_math1": "gemma2:2b"
+    },
+    "chosen_utility": 0.429
+  },
+  "vram_used_gb": 2.0,
+  "vram_violation": false,
+  "job_score": 1.0
+}

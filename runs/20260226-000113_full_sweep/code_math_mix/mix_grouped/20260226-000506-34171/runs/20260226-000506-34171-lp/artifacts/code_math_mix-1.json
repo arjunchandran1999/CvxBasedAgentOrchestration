@@ -1,0 +1,134 @@
+{
+  "run_id": "20260226-000506-34171-lp",
+  "job_id": "code_math_mix-1",
+  "routing_mode": "lp",
+  "routing_source": "lp",
+  "query": "Write Python: def add(a,b): return a+b. Return ONLY code.",
+  "benchmark_name": "code_math_mix",
+  "benchmark_reference": {
+    "task_id": "t_add",
+    "task_type": "code",
+    "expected": {
+      "entry_point": "add",
+      "tests": [
+        "assert add(2,3)==5",
+        "assert add(-1,1)==0"
+      ]
+    },
+    "estimated_tokens": 280,
+    "difficulty": 1.5
+  },
+  "subtasks": [
+    {
+      "id": "t_add",
+      "task_type": "code",
+      "description": "Write Python: def add(a,b): return a+b. Return ONLY code.",
+      "estimated_tokens": 280,
+      "difficulty": 1.5
+    }
+  ],
+  "assignments": [
+    {
+      "subtask_id": "t_add",
+      "agent": "gemma2:2b",
+      "mode": "lp",
+      "estimated_performance": 0.42000000000000004,
+      "estimated_token_cost": 98.0,
+      "estimated_switch_cost": 0.4
+    }
+  ],
+  "orchestration": {
+    "routing_mode": "lp",
+    "routing_source": "lp",
+    "planner_model": null,
+    "assignments": [
+      {
+        "subtask_id": "t_add",
+        "role": "code",
+        "model": "gemma2:2b",
+        "agent_id": "code|gemma2:2b"
+      }
+    ],
+    "active_models": [
+      "gemma2:2b"
+    ],
+    "active_role_agents": [
+      "code|gemma2:2b"
+    ]
+  },
+  "results": [
+    {
+      "subtask_id": "t_add",
+      "agent": "gemma2:2b",
+      "output": "```python\ndef add(a, b):\n  return a + b \n```\n\n**Explanation:**\n\nThis code defines a function named `add` that takes two arguments (`a` and `b`). It then returns the sum of these two arguments using the `+` operator. \n\n\n* **`def add(a, b):`**: This line defines the function named \"add\" with parameters `a` and `b`.\n* **`return a + b`**:  This line calculates the sum of `a` and `b` and returns the result using the `return` keyword. \n\n\nLet me know if you'd like to explore more complex functions or have other coding tasks! \n",
+      "latency_ms": 1338.2877297699451,
+      "prompt_tokens": 87,
+      "completion_tokens": 151,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": true
+    }
+  ],
+  "evaluations": [
+    {
+      "subtask_id": "t_add",
+      "success": true,
+      "judge_score": null,
+      "judge_rationale": null
+    }
+  ],
+  "final_answer": null,
+  "active_models": [
+    "gemma2:2b"
+  ],
+  "active_roles": [
+    "code"
+  ],
+  "active_role_agents": [
+    "code|gemma2:2b"
+  ],
+  "loaded_models_before": [],
+  "loaded_models_at_router": [],
+  "model_task_estimates": [
+    {
+      "subtask_id": "t_add",
+      "model": "tinyllama:latest",
+      "quality": 0.32,
+      "token_cost": 70.0,
+      "switch_cost": 0.3,
+      "utility_cell": 0.285,
+      "utility": 0.135
+    },
+    {
+      "subtask_id": "t_add",
+      "model": "gemma2:2b",
+      "quality": 0.42,
+      "token_cost": 98.0,
+      "switch_cost": 0.4,
+      "utility_cell": 0.371,
+      "utility": 0.171
+    },
+    {
+      "subtask_id": "t_add",
+      "model": "phi3:mini",
+      "quality": 0.47,
+      "token_cost": 168.0,
+      "switch_cost": 0.5333,
+      "utility_cell": 0.386,
+      "utility": 0.1193
+    }
+  ],
+  "oracle": {
+    "best_per_task_by_quality": {
+      "t_add": "phi3:mini"
+    },
+    "best_per_task_by_utility": {
+      "t_add": "gemma2:2b"
+    },
+    "chosen_utility": 0.171,
+    "lp_objective_value": 0.171
+  },
+  "vram_used_gb": 2.0,
+  "vram_violation": false,
+  "job_score": 1.0
+}

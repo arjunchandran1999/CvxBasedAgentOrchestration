@@ -1,0 +1,223 @@
+{
+  "run_id": "20260226-000553-34684-lp",
+  "job_id": "agentic_bench-1",
+  "routing_mode": "lp",
+  "query": "AgenticBench job ab1",
+  "final_answer": null,
+  "benchmark_name": "agentic_bench",
+  "job_score": 0.8333333333333333,
+  "active_models": [
+    "phi4:14b",
+    "qwen2.5-coder:7b"
+  ],
+  "models_swapped_in": [
+    "phi4:14b",
+    "qwen2.5-coder:7b"
+  ],
+  "estimated_switch_cost_ms": 3600.0,
+  "vram_used_gb": 12.5,
+  "vram_violation": false,
+  "total_latency_ms": 14030.508419498801,
+  "total_prompt_tokens": 267,
+  "total_completion_tokens": 506,
+  "avg_judge_score": null,
+  "success_rate": 1.0,
+  "plan": [
+    {
+      "id": "s0",
+      "task_type": "reasoning",
+      "description": "Plan: We need a function that computes factorial of n. Return ONLY a one-line plan.",
+      "estimated_tokens": 150,
+      "difficulty": 2.0
+    },
+    {
+      "id": "s1",
+      "task_type": "code",
+      "description": "Write Python: def fact(n): return n! (factorial). Return ONLY code.",
+      "estimated_tokens": 200,
+      "difficulty": 2.5
+    },
+    {
+      "id": "s2",
+      "task_type": "math",
+      "description": "Verify: compute fact(5) and output only the number.",
+      "estimated_tokens": 80,
+      "difficulty": 1.5
+    },
+    {
+      "id": "s3",
+      "task_type": "summarize",
+      "description": "Summarize what the factorial function does in one sentence.",
+      "estimated_tokens": 80,
+      "difficulty": 1.5
+    }
+  ],
+  "task_to_model": {
+    "s0": "phi4:14b",
+    "s1": "qwen2.5-coder:7b",
+    "s2": "phi4:14b",
+    "s3": "phi4:14b"
+  },
+  "loaded_models": [],
+  "model_task_estimates": [
+    {
+      "subtask_id": "s0",
+      "model": "gemma2:2b",
+      "quality": 0.44,
+      "token_cost": 60.0,
+      "switch_cost": 0.4,
+      "utility_cell": 0.41,
+      "utility": 0.33
+    },
+    {
+      "subtask_id": "s0",
+      "model": "qwen2.5-coder:7b",
+      "quality": 0.59,
+      "token_cost": 180.0,
+      "switch_cost": 0.8,
+      "utility_cell": 0.5,
+      "utility": 0.34
+    },
+    {
+      "subtask_id": "s0",
+      "model": "llama3.1:8b",
+      "quality": 0.74,
+      "token_cost": 210.0,
+      "switch_cost": 1.0667,
+      "utility_cell": 0.635,
+      "utility": 0.4217
+    },
+    {
+      "subtask_id": "s0",
+      "model": "phi4:14b",
+      "quality": 0.844,
+      "token_cost": 300.0,
+      "switch_cost": 1.6,
+      "utility_cell": 0.694,
+      "utility": 0.374
+    },
+    {
+      "subtask_id": "s1",
+      "model": "gemma2:2b",
+      "quality": 0.36,
+      "token_cost": 80.0,
+      "switch_cost": 0.4,
+      "utility_cell": 0.32,
+      "utility": 0.24
+    },
+    {
+      "subtask_id": "s1",
+      "model": "qwen2.5-coder:7b",
+      "quality": 0.79,
+      "token_cost": 240.0,
+      "switch_cost": 0.8,
+      "utility_cell": 0.67,
+      "utility": 0.51
+    },
+    {
+      "subtask_id": "s1",
+      "model": "llama3.1:8b",
+      "quality": 0.61,
+      "token_cost": 280.0,
+      "switch_cost": 1.0667,
+      "utility_cell": 0.47,
+      "utility": 0.2567
+    },
+    {
+      "subtask_id": "s1",
+      "model": "phi4:14b",
+      "quality": 0.66,
+      "token_cost": 400.0,
+      "switch_cost": 1.6,
+      "utility_cell": 0.46,
+      "utility": 0.14
+    },
+    {
+      "subtask_id": "s2",
+      "model": "gemma2:2b",
+      "quality": 0.42,
+      "token_cost": 32.0,
+      "switch_cost": 0.4,
+      "utility_cell": 0.404,
+      "utility": 0.324
+    },
+    {
+      "subtask_id": "s2",
+      "model": "qwen2.5-coder:7b",
+      "quality": 0.62,
+      "token_cost": 96.0,
+      "switch_cost": 0.8,
+      "utility_cell": 0.572,
+      "utility": 0.412
+    },
+    {
+      "subtask_id": "s2",
+      "model": "llama3.1:8b",
+      "quality": 0.69,
+      "token_cost": 112.0,
+      "switch_cost": 1.0667,
+      "utility_cell": 0.634,
+      "utility": 0.4207
+    },
+    {
+      "subtask_id": "s2",
+      "model": "phi4:14b",
+      "quality": 0.89,
+      "token_cost": 160.0,
+      "switch_cost": 1.6,
+      "utility_cell": 0.81,
+      "utility": 0.49
+    },
+    {
+      "subtask_id": "s3",
+      "model": "gemma2:2b",
+      "quality": 0.52,
+      "token_cost": 32.0,
+      "switch_cost": 0.4,
+      "utility_cell": 0.504,
+      "utility": 0.424
+    },
+    {
+      "subtask_id": "s3",
+      "model": "qwen2.5-coder:7b",
+      "quality": 0.57,
+      "token_cost": 96.0,
+      "switch_cost": 0.8,
+      "utility_cell": 0.522,
+      "utility": 0.362
+    },
+    {
+      "subtask_id": "s3",
+      "model": "llama3.1:8b",
+      "quality": 0.72,
+      "token_cost": 112.0,
+      "switch_cost": 1.0667,
+      "utility_cell": 0.664,
+      "utility": 0.4507
+    },
+    {
+      "subtask_id": "s3",
+      "model": "phi4:14b",
+      "quality": 0.73,
+      "token_cost": 160.0,
+      "switch_cost": 1.6,
+      "utility_cell": 0.65,
+      "utility": 0.33
+    }
+  ],
+  "oracle": {
+    "best_per_task_by_quality": {
+      "s0": "phi4:14b",
+      "s1": "qwen2.5-coder:7b",
+      "s2": "phi4:14b",
+      "s3": "phi4:14b"
+    },
+    "best_per_task_by_utility": {
+      "s0": "llama3.1:8b",
+      "s1": "qwen2.5-coder:7b",
+      "s2": "phi4:14b",
+      "s3": "llama3.1:8b"
+    },
+    "chosen_utility": 2.344
+  }
+}

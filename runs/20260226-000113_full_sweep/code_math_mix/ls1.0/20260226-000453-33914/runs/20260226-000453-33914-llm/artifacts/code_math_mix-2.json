@@ -1,0 +1,137 @@
+{
+  "run_id": "20260226-000453-33914-llm",
+  "job_id": "code_math_mix-2",
+  "routing_mode": "llm",
+  "routing_source": "llm_planner",
+  "query": "Write Python: def is_palindrome(s): return True if s reads same reversed. Return ONLY code.",
+  "benchmark_name": "code_math_mix",
+  "benchmark_reference": {
+    "task_id": "t_pal",
+    "task_type": "code",
+    "expected": {
+      "entry_point": "is_palindrome",
+      "tests": [
+        "assert is_palindrome('racecar')",
+        "assert not is_palindrome('abc')"
+      ]
+    },
+    "estimated_tokens": 420,
+    "difficulty": 2.5
+  },
+  "subtasks": [
+    {
+      "id": "t_pal",
+      "task_type": "code",
+      "description": "Write Python: def is_palindrome(s): return True if s reads same reversed. Return ONLY code.",
+      "estimated_tokens": 420,
+      "difficulty": 2.5
+    }
+  ],
+  "assignments": [
+    {
+      "subtask_id": "t_pal",
+      "agent": "tinyllama:latest",
+      "mode": "llm",
+      "estimated_performance": 0.18999999999999997,
+      "estimated_token_cost": 105.0,
+      "estimated_switch_cost": 0.0
+    }
+  ],
+  "orchestration": {
+    "routing_mode": "llm",
+    "routing_source": "llm_planner",
+    "planner_model": "llama3.1:8b",
+    "assignments": [
+      {
+        "subtask_id": "t_pal",
+        "role": "code",
+        "model": "tinyllama:latest",
+        "agent_id": "code|tinyllama:latest"
+      }
+    ],
+    "active_models": [
+      "tinyllama:latest"
+    ],
+    "active_role_agents": [
+      "code|tinyllama:latest"
+    ]
+  },
+  "results": [
+    {
+      "subtask_id": "t_pal",
+      "agent": "tinyllama:latest",
+      "output": "",
+      "latency_ms": null,
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "success": false,
+      "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "swapped_in_for_job": false
+    }
+  ],
+  "evaluations": [
+    {
+      "subtask_id": "t_pal",
+      "success": false,
+      "judge_score": null,
+      "judge_rationale": null
+    }
+  ],
+  "final_answer": null,
+  "active_models": [
+    "tinyllama:latest"
+  ],
+  "active_roles": [
+    "code"
+  ],
+  "active_role_agents": [
+    "code|tinyllama:latest"
+  ],
+  "loaded_models_before": [
+    "tinyllama:latest"
+  ],
+  "loaded_models_at_router": [
+    "tinyllama:latest"
+  ],
+  "model_task_estimates": [
+    {
+      "subtask_id": "t_pal",
+      "model": "tinyllama:latest",
+      "quality": 0.19,
+      "token_cost": 105.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.1375,
+      "utility": 0.1375
+    },
+    {
+      "subtask_id": "t_pal",
+      "model": "gemma2:2b",
+      "quality": 0.36,
+      "token_cost": 147.0,
+      "switch_cost": 0.4,
+      "utility_cell": 0.2865,
+      "utility": -0.1135
+    },
+    {
+      "subtask_id": "t_pal",
+      "model": "phi3:mini",
+      "quality": 0.41,
+      "token_cost": 252.0,
+      "switch_cost": 0.5333,
+      "utility_cell": 0.284,
+      "utility": -0.2493
+    }
+  ],
+  "oracle": {
+    "best_per_task_by_quality": {
+      "t_pal": "phi3:mini"
+    },
+    "best_per_task_by_utility": {
+      "t_pal": "tinyllama:latest"
+    },
+    "chosen_utility": 0.1375
+  },
+  "vram_used_gb": 1.2,
+  "vram_violation": false,
+  "job_score": 0.0
+}

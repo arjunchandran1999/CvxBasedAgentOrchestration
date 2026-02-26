@@ -1,0 +1,128 @@
+{
+  "run_id": "20260226-000223-32170-lp",
+  "job_id": "workflowbench-3",
+  "routing_mode": "lp",
+  "routing_source": "lp",
+  "query": "WorkflowBench job wb3",
+  "benchmark_name": "workflowbench",
+  "benchmark_reference": {
+    "job_id": "wb3",
+    "subtasks": [
+      {
+        "id": "s0",
+        "task_type": "extraction",
+        "description": "Extract the date from: 'Meeting is on 2026-02-21.' Return ONLY JSON {\"date\": \"YYYY-MM-DD\"}.",
+        "expected": {
+          "date": "2026-02-21"
+        },
+        "estimated_tokens": 180,
+        "difficulty": 1.5
+      },
+      {
+        "id": "s1",
+        "task_type": "reasoning",
+        "description": "Is 2026-02-21 a Saturday? Answer YES or NO only.",
+        "expected": "yes",
+        "estimated_tokens": 120,
+        "difficulty": 2.5
+      },
+      {
+        "id": "s2",
+        "task_type": "summarize",
+        "description": "Summarize the result in one short sentence.",
+        "expected": {
+          "keywords": [
+            "saturday"
+          ]
+        },
+        "estimated_tokens": 120,
+        "difficulty": 1.5
+      }
+    ]
+  },
+  "subtasks": [
+    {
+      "id": "s0",
+      "task_type": "extraction",
+      "description": "Extract the date from: 'Meeting is on 2026-02-21.' Return ONLY JSON {\"date\": \"YYYY-MM-DD\"}.",
+      "estimated_tokens": 180,
+      "difficulty": 1.5
+    },
+    {
+      "id": "s1",
+      "task_type": "reasoning",
+      "description": "Is 2026-02-21 a Saturday? Answer YES or NO only.",
+      "estimated_tokens": 120,
+      "difficulty": 2.5
+    },
+    {
+      "id": "s2",
+      "task_type": "summarize",
+      "description": "Summarize the result in one short sentence.",
+      "estimated_tokens": 120,
+      "difficulty": 1.5
+    }
+  ],
+  "assignments": [
+    {
+      "subtask_id": "s0",
+      "agent": "qwen2.5-coder:7b",
+      "mode": "lp",
+      "estimated_performance": 0.6499999999999999,
+      "estimated_token_cost": 216.0,
+      "estimated_switch_cost": 0.0
+    },
+    {
+      "subtask_id": "s1",
+      "agent": "qwen2.5-coder:7b",
+      "mode": "lp",
+      "estimated_performance": 0.56,
+      "estimated_token_cost": 144.0,
+      "estimated_switch_cost": 0.0
+    },
+    {
+      "subtask_id": "s2",
+      "agent": "qwen2.5-coder:7b",
+      "mode": "lp",
+      "estimated_performance": 0.6499999999999999,
+      "estimated_token_cost": 144.0,
+      "estimated_switch_cost": 0.0
+    }
+  ],
+  "results": [
+    {
+      "subtask_id": "s0",
+      "agent": "qwen2.5-coder:7b",
+      "output": "```json\n{\"date\": \"2026-02-21\"}\n```",
+      "latency_ms": 322.81962409615517,
+      "prompt_tokens": 78,
+      "completion_tokens": 20,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    },
+    {
+      "subtask_id": "s1",
+      "agent": "qwen2.5-coder:7b",
+      "output": "NO",
+      "latency_ms": 202.7022484689951,
+      "prompt_tokens": 69,
+      "completion_tokens": 2,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    },
+    {
+      "subtask_id": "s2",
+      "agent": "qwen2.5-coder:7b",
+      "output": "I apologize, but I don't have any specific information about a \"WorkflowBench job wb3\" or its results to summarize. Without additional context or details, I can't provide a meaningful summary of that particular job. If you have more information about what this job entails or what the results were, please share it and I'd be happy to help with a concise summary.",
+      "latency_ms": 735.9799481928349,
+      "prompt_tokens": 55,
+      "completion_tokens": 77,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    }
+  ],
+  "job_score": 0.3333333333333333
+}

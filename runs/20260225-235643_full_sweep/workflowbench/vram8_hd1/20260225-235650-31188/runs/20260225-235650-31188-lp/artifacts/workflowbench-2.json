@@ -1,0 +1,131 @@
+{
+  "run_id": "20260225-235650-31188-lp",
+  "job_id": "workflowbench-2",
+  "routing_mode": "lp",
+  "routing_source": "lp",
+  "query": "WorkflowBench job wb2",
+  "benchmark_name": "workflowbench",
+  "benchmark_reference": {
+    "job_id": "wb2",
+    "subtasks": [
+      {
+        "id": "s0",
+        "task_type": "code",
+        "description": "Write Python: def fib(n): return nth Fibonacci with fib(0)=0,fib(1)=1. Return ONLY code.",
+        "expected": {
+          "entry_point": "fib",
+          "value": 55
+        },
+        "estimated_tokens": 450,
+        "difficulty": 3.0
+      },
+      {
+        "id": "s1",
+        "task_type": "math",
+        "description": "Compute fib(10) if fib(0)=0, fib(1)=1. Output only the number.",
+        "expected": 55,
+        "estimated_tokens": 120,
+        "difficulty": 2.0
+      },
+      {
+        "id": "s2",
+        "task_type": "summarize",
+        "description": "In 1-2 sentences, explain how Fibonacci works (recurrence).",
+        "expected": {
+          "keywords": [
+            "fib",
+            "previous",
+            "sum"
+          ]
+        },
+        "estimated_tokens": 180,
+        "difficulty": 2.0
+      }
+    ]
+  },
+  "subtasks": [
+    {
+      "id": "s0",
+      "task_type": "code",
+      "description": "Write Python: def fib(n): return nth Fibonacci with fib(0)=0,fib(1)=1. Return ONLY code.",
+      "estimated_tokens": 450,
+      "difficulty": 3.0
+    },
+    {
+      "id": "s1",
+      "task_type": "math",
+      "description": "Compute fib(10) if fib(0)=0, fib(1)=1. Output only the number.",
+      "estimated_tokens": 120,
+      "difficulty": 2.0
+    },
+    {
+      "id": "s2",
+      "task_type": "summarize",
+      "description": "In 1-2 sentences, explain how Fibonacci works (recurrence).",
+      "estimated_tokens": 180,
+      "difficulty": 2.0
+    }
+  ],
+  "assignments": [
+    {
+      "subtask_id": "s0",
+      "agent": "llama3.1:8b",
+      "mode": "lp",
+      "estimated_performance": 0.64,
+      "estimated_token_cost": 630.0,
+      "estimated_switch_cost": 0.0
+    },
+    {
+      "subtask_id": "s1",
+      "agent": "llama3.1:8b",
+      "mode": "lp",
+      "estimated_performance": 0.716,
+      "estimated_token_cost": 168.0,
+      "estimated_switch_cost": 0.0
+    },
+    {
+      "subtask_id": "s2",
+      "agent": "llama3.1:8b",
+      "mode": "lp",
+      "estimated_performance": 0.69,
+      "estimated_token_cost": 251.99999999999994,
+      "estimated_switch_cost": 0.0
+    }
+  ],
+  "results": [
+    {
+      "subtask_id": "s0",
+      "agent": "llama3.1:8b",
+      "output": "```python\ndef fib(n):\n    if n <= 1:\n        return n\n    else:\n        return fib(n-1) + fib(n-2)\n```\n\nThis function uses recursion to calculate the nth Fibonacci number, where `fib(0)` returns `0` and `fib(1)` returns `1`.",
+      "latency_ms": 682.6729159802198,
+      "prompt_tokens": 80,
+      "completion_tokens": 68,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    },
+    {
+      "subtask_id": "s1",
+      "agent": "llama3.1:8b",
+      "output": "A delightful math problem!\n\nTo compute `fib(10)` using the recurrence relation `fib(n) = fib(n-1) + fib(n-2)` with base cases `fib(0) = 0` and `fib(1) = 1`, I'll use a step-by-step approach.\n\n**Step 1: Initialize variables**\n\nLet's define the first two values of the Fibonacci sequence:\n\n* `fib(0) = 0`\n* `fib(1) = 1`\n\nWe need to compute `fib(10)` using these base cases.\n\n**Step 2: Compute fib(2)**\n\nUsing the recurrence relation, we can compute `fib(2)` as follows:\n`fib(2) = fib(1) + fib(0)`\n= `1 + 0`\n= `1`\n\nSo, `fib(2) = 1`.\n\n**Step 3: Compute fib(3)**\n\nNow, let's compute `fib(3)` using the recurrence relation again:\n`fib(3) = fib(2) + fib(1)`\n= `1 + 1`\n= `2`\n\nSo, `fib(3) = 2`.\n\n**Step 4: Continue computing Fibonacci numbers up to fib(10)**\n\nWe'll continue this process iteratively:\n\n* `fib(4) = fib(3) + fib(2) = 2 + 1 = 3`\n* `fib(5) = fib(4) + fib(3) = 3 + 2 = 5`\n* `fib(6) = fib(5) + fib(4) = 5 + 3 = 8`\n* `fib(7) = fib(6) + fib(5) = 8 + 5 = 13`\n* `fib(8) = fib(7) + fib(6) = 13 + 8 = 21`\n* `fib(9) = fib(8) + fib(7) = 21 + 13 = 34`\n* `fib(10) = fib(9) + fib(8) = 34 + 21 = 55`\n\n**Final answer:**\n\nThe value of `fib(10)` is **55**.",
+      "latency_ms": 3996.514018625021,
+      "prompt_tokens": 73,
+      "completion_tokens": 470,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    },
+    {
+      "subtask_id": "s2",
+      "agent": "llama3.1:8b",
+      "output": "The Fibonacci sequence is a series of numbers where each number is the sum of the two preceding ones, starting with 0 and 1. This creates a recursive relationship: F(n) = F(n-1) + F(n-2), where n represents the position in the sequence.",
+      "latency_ms": 641.0206668078899,
+      "prompt_tokens": 62,
+      "completion_tokens": 59,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    }
+  ],
+  "job_score": 0.8888888888888888
+}

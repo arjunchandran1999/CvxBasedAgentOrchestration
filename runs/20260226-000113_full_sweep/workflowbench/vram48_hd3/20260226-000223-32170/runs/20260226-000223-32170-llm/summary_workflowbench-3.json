@@ -1,0 +1,176 @@
+{
+  "run_id": "20260226-000223-32170-llm",
+  "job_id": "workflowbench-3",
+  "routing_mode": "llm",
+  "query": "WorkflowBench job wb3",
+  "final_answer": null,
+  "benchmark_name": "workflowbench",
+  "job_score": 0.3333333333333333,
+  "active_models": [
+    "phi4:14b"
+  ],
+  "models_swapped_in": [],
+  "estimated_switch_cost_ms": 0.0,
+  "vram_used_gb": 12.5,
+  "vram_violation": false,
+  "total_latency_ms": 7709.740977734327,
+  "total_prompt_tokens": 203,
+  "total_completion_tokens": 641,
+  "avg_judge_score": null,
+  "success_rate": 1.0,
+  "plan": [
+    {
+      "id": "s0",
+      "task_type": "extraction",
+      "description": "Extract the date from: 'Meeting is on 2026-02-21.' Return ONLY JSON {\"date\": \"YYYY-MM-DD\"}.",
+      "estimated_tokens": 180,
+      "difficulty": 1.5
+    },
+    {
+      "id": "s1",
+      "task_type": "reasoning",
+      "description": "Is 2026-02-21 a Saturday? Answer YES or NO only.",
+      "estimated_tokens": 120,
+      "difficulty": 2.5
+    },
+    {
+      "id": "s2",
+      "task_type": "summarize",
+      "description": "Summarize the result in one short sentence.",
+      "estimated_tokens": 120,
+      "difficulty": 1.5
+    }
+  ],
+  "task_to_model": {
+    "s0": "phi4:14b",
+    "s1": "phi4:14b",
+    "s2": "phi4:14b"
+  },
+  "loaded_models": [
+    "phi4:14b",
+    "qwen2.5-coder:7b"
+  ],
+  "model_task_estimates": [
+    {
+      "subtask_id": "s0",
+      "model": "gemma2:2b",
+      "quality": 0.61,
+      "token_cost": 72.0,
+      "switch_cost": 0.4,
+      "utility_cell": 0.574,
+      "utility": 0.494
+    },
+    {
+      "subtask_id": "s0",
+      "model": "qwen2.5-coder:7b",
+      "quality": 0.57,
+      "token_cost": 216.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.462,
+      "utility": 0.462
+    },
+    {
+      "subtask_id": "s0",
+      "model": "llama3.1:8b",
+      "quality": 0.67,
+      "token_cost": 252.0,
+      "switch_cost": 1.0667,
+      "utility_cell": 0.544,
+      "utility": 0.3307
+    },
+    {
+      "subtask_id": "s0",
+      "model": "phi4:14b",
+      "quality": 0.746,
+      "token_cost": 360.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.566,
+      "utility": 0.566
+    },
+    {
+      "subtask_id": "s1",
+      "model": "gemma2:2b",
+      "quality": 0.41,
+      "token_cost": 48.0,
+      "switch_cost": 0.4,
+      "utility_cell": 0.386,
+      "utility": 0.306
+    },
+    {
+      "subtask_id": "s1",
+      "model": "qwen2.5-coder:7b",
+      "quality": 0.56,
+      "token_cost": 144.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.488,
+      "utility": 0.488
+    },
+    {
+      "subtask_id": "s1",
+      "model": "llama3.1:8b",
+      "quality": 0.71,
+      "token_cost": 168.0,
+      "switch_cost": 1.0667,
+      "utility_cell": 0.626,
+      "utility": 0.4127
+    },
+    {
+      "subtask_id": "s1",
+      "model": "phi4:14b",
+      "quality": 0.814,
+      "token_cost": 240.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.694,
+      "utility": 0.694
+    },
+    {
+      "subtask_id": "s2",
+      "model": "gemma2:2b",
+      "quality": 0.52,
+      "token_cost": 48.0,
+      "switch_cost": 0.4,
+      "utility_cell": 0.496,
+      "utility": 0.416
+    },
+    {
+      "subtask_id": "s2",
+      "model": "qwen2.5-coder:7b",
+      "quality": 0.57,
+      "token_cost": 144.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.498,
+      "utility": 0.498
+    },
+    {
+      "subtask_id": "s2",
+      "model": "llama3.1:8b",
+      "quality": 0.72,
+      "token_cost": 168.0,
+      "switch_cost": 1.0667,
+      "utility_cell": 0.636,
+      "utility": 0.4227
+    },
+    {
+      "subtask_id": "s2",
+      "model": "phi4:14b",
+      "quality": 0.778,
+      "token_cost": 240.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.658,
+      "utility": 0.658
+    }
+  ],
+  "oracle": {
+    "best_per_task_by_quality": {
+      "s0": "phi4:14b",
+      "s1": "phi4:14b",
+      "s2": "phi4:14b"
+    },
+    "best_per_task_by_utility": {
+      "s0": "phi4:14b",
+      "s1": "phi4:14b",
+      "s2": "phi4:14b"
+    },
+    "chosen_utility": 1.918
+  }
+}

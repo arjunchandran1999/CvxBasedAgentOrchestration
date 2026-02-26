@@ -1,0 +1,128 @@
+{
+  "run_id": "20260226-000223-32170-lp",
+  "job_id": "workflowbench-1",
+  "routing_mode": "lp",
+  "routing_source": "lp",
+  "query": "WorkflowBench job wb1",
+  "benchmark_name": "workflowbench",
+  "benchmark_reference": {
+    "job_id": "wb1",
+    "subtasks": [
+      {
+        "id": "s0",
+        "task_type": "extraction",
+        "description": "From the text 'A=3 and B=4', extract JSON {\"A\":3,\"B\":4}. Return ONLY JSON.",
+        "expected": {
+          "A": 3,
+          "B": 4
+        },
+        "estimated_tokens": 200,
+        "difficulty": 1.5
+      },
+      {
+        "id": "s1",
+        "task_type": "math",
+        "description": "Given A=3 and B=4, compute A^2 + B^2. Output only the number.",
+        "expected": 25,
+        "estimated_tokens": 150,
+        "difficulty": 2.0
+      },
+      {
+        "id": "s2",
+        "task_type": "code",
+        "description": "Write Python: def hyp_sq(a,b): return a*a + b*b. Return ONLY code.",
+        "expected": {
+          "entry_point": "hyp_sq",
+          "value": 25
+        },
+        "estimated_tokens": 350,
+        "difficulty": 2.0
+      }
+    ]
+  },
+  "subtasks": [
+    {
+      "id": "s0",
+      "task_type": "extraction",
+      "description": "From the text 'A=3 and B=4', extract JSON {\"A\":3,\"B\":4}. Return ONLY JSON.",
+      "estimated_tokens": 200,
+      "difficulty": 1.5
+    },
+    {
+      "id": "s1",
+      "task_type": "math",
+      "description": "Given A=3 and B=4, compute A^2 + B^2. Output only the number.",
+      "estimated_tokens": 150,
+      "difficulty": 2.0
+    },
+    {
+      "id": "s2",
+      "task_type": "code",
+      "description": "Write Python: def hyp_sq(a,b): return a*a + b*b. Return ONLY code.",
+      "estimated_tokens": 350,
+      "difficulty": 2.0
+    }
+  ],
+  "assignments": [
+    {
+      "subtask_id": "s0",
+      "agent": "qwen2.5-coder:7b",
+      "mode": "lp",
+      "estimated_performance": 0.57,
+      "estimated_token_cost": 240.0,
+      "estimated_switch_cost": 0.8
+    },
+    {
+      "subtask_id": "s1",
+      "agent": "qwen2.5-coder:7b",
+      "mode": "lp",
+      "estimated_performance": 0.5900000000000001,
+      "estimated_token_cost": 180.0,
+      "estimated_switch_cost": 0.0
+    },
+    {
+      "subtask_id": "s2",
+      "agent": "qwen2.5-coder:7b",
+      "mode": "lp",
+      "estimated_performance": 0.79,
+      "estimated_token_cost": 420.0,
+      "estimated_switch_cost": 0.0
+    }
+  ],
+  "results": [
+    {
+      "subtask_id": "s0",
+      "agent": "qwen2.5-coder:7b",
+      "output": "```json\n{\"A\":3,\"B\":4}\n```",
+      "latency_ms": 600.4402190446854,
+      "prompt_tokens": 72,
+      "completion_tokens": 14,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": true
+    },
+    {
+      "subtask_id": "s1",
+      "agent": "qwen2.5-coder:7b",
+      "output": "To solve this problem, we need to follow these steps:\n\n1. Calculate \\(A^2\\).\n2. Calculate \\(B^2\\).\n3. Add the results from steps 1 and 2.\n\nGiven:\n\\(A = 3\\)\n\\(B = 4\\)\n\nStep 1: Calculate \\(A^2\\):\n\\[ A^2 = 3^2 = 9 \\]\n\nStep 2: Calculate \\(B^2\\):\n\\[ B^2 = 4^2 = 16 \\]\n\nStep 3: Add the results from steps 1 and 2:\n\\[ A^2 + B^2 = 9 + 16 = 25 \\]\n\nTherefore, the final answer is:\n25",
+      "latency_ms": 1271.5149279683828,
+      "prompt_tokens": 71,
+      "completion_tokens": 156,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    },
+    {
+      "subtask_id": "s2",
+      "agent": "qwen2.5-coder:7b",
+      "output": "```python\ndef hyp_sq(a, b):\n    return a * a + b * b\n```\n\nThis function takes two arguments, `a` and `b`, and returns the sum of their squares. It's a straightforward implementation with no complexity involved.",
+      "latency_ms": 574.9015789479017,
+      "prompt_tokens": 71,
+      "completion_tokens": 54,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    }
+  ],
+  "job_score": 1.0
+}

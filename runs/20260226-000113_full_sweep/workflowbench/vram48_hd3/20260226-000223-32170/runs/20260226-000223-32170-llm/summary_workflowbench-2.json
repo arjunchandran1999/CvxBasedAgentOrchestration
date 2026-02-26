@@ -1,0 +1,178 @@
+{
+  "run_id": "20260226-000223-32170-llm",
+  "job_id": "workflowbench-2",
+  "routing_mode": "llm",
+  "query": "WorkflowBench job wb2",
+  "final_answer": null,
+  "benchmark_name": "workflowbench",
+  "job_score": 0.8888888888888888,
+  "active_models": [
+    "phi4:14b",
+    "qwen2.5-coder:7b"
+  ],
+  "models_swapped_in": [],
+  "estimated_switch_cost_ms": 0.0,
+  "vram_used_gb": 12.5,
+  "vram_violation": false,
+  "total_latency_ms": 17470.858110114932,
+  "total_prompt_tokens": 215,
+  "total_completion_tokens": 819,
+  "avg_judge_score": null,
+  "success_rate": 1.0,
+  "plan": [
+    {
+      "id": "s0",
+      "task_type": "code",
+      "description": "Write Python: def fib(n): return nth Fibonacci with fib(0)=0,fib(1)=1. Return ONLY code.",
+      "estimated_tokens": 450,
+      "difficulty": 3.0
+    },
+    {
+      "id": "s1",
+      "task_type": "math",
+      "description": "Compute fib(10) if fib(0)=0, fib(1)=1. Output only the number.",
+      "estimated_tokens": 120,
+      "difficulty": 2.0
+    },
+    {
+      "id": "s2",
+      "task_type": "summarize",
+      "description": "In 1-2 sentences, explain how Fibonacci works (recurrence).",
+      "estimated_tokens": 180,
+      "difficulty": 2.0
+    }
+  ],
+  "task_to_model": {
+    "s0": "qwen2.5-coder:7b",
+    "s1": "phi4:14b",
+    "s2": "phi4:14b"
+  },
+  "loaded_models": [
+    "gemma2:2b",
+    "phi4:14b",
+    "qwen2.5-coder:7b"
+  ],
+  "model_task_estimates": [
+    {
+      "subtask_id": "s0",
+      "model": "gemma2:2b",
+      "quality": 0.33,
+      "token_cost": 180.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.24,
+      "utility": 0.24
+    },
+    {
+      "subtask_id": "s0",
+      "model": "qwen2.5-coder:7b",
+      "quality": 0.784,
+      "token_cost": 540.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.514,
+      "utility": 0.514
+    },
+    {
+      "subtask_id": "s0",
+      "model": "llama3.1:8b",
+      "quality": 0.58,
+      "token_cost": 630.0,
+      "switch_cost": 1.0667,
+      "utility_cell": 0.265,
+      "utility": 0.0517
+    },
+    {
+      "subtask_id": "s0",
+      "model": "phi4:14b",
+      "quality": 0.63,
+      "token_cost": 900.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.18,
+      "utility": 0.18
+    },
+    {
+      "subtask_id": "s1",
+      "model": "gemma2:2b",
+      "quality": 0.39,
+      "token_cost": 48.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.366,
+      "utility": 0.366
+    },
+    {
+      "subtask_id": "s1",
+      "model": "qwen2.5-coder:7b",
+      "quality": 0.59,
+      "token_cost": 144.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.518,
+      "utility": 0.518
+    },
+    {
+      "subtask_id": "s1",
+      "model": "llama3.1:8b",
+      "quality": 0.66,
+      "token_cost": 168.0,
+      "switch_cost": 1.0667,
+      "utility_cell": 0.576,
+      "utility": 0.3627
+    },
+    {
+      "subtask_id": "s1",
+      "model": "phi4:14b",
+      "quality": 0.876,
+      "token_cost": 240.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.756,
+      "utility": 0.756
+    },
+    {
+      "subtask_id": "s2",
+      "model": "gemma2:2b",
+      "quality": 0.49,
+      "token_cost": 72.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.454,
+      "utility": 0.454
+    },
+    {
+      "subtask_id": "s2",
+      "model": "qwen2.5-coder:7b",
+      "quality": 0.54,
+      "token_cost": 216.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.432,
+      "utility": 0.432
+    },
+    {
+      "subtask_id": "s2",
+      "model": "llama3.1:8b",
+      "quality": 0.69,
+      "token_cost": 252.0,
+      "switch_cost": 1.0667,
+      "utility_cell": 0.564,
+      "utility": 0.3507
+    },
+    {
+      "subtask_id": "s2",
+      "model": "phi4:14b",
+      "quality": 0.7,
+      "token_cost": 360.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.52,
+      "utility": 0.52
+    }
+  ],
+  "oracle": {
+    "best_per_task_by_quality": {
+      "s0": "qwen2.5-coder:7b",
+      "s1": "phi4:14b",
+      "s2": "phi4:14b"
+    },
+    "best_per_task_by_utility": {
+      "s0": "qwen2.5-coder:7b",
+      "s1": "phi4:14b",
+      "s2": "phi4:14b"
+    },
+    "chosen_utility": 1.79
+  }
+}

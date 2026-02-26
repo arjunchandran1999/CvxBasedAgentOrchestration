@@ -1,0 +1,170 @@
+{
+  "run_id": "20260226-000553-34684-llm",
+  "job_id": "agentic_bench-1",
+  "routing_mode": "llm",
+  "routing_source": "llm_planner",
+  "query": "AgenticBench job ab1",
+  "benchmark_name": "agentic_bench",
+  "benchmark_reference": {
+    "job_id": "ab1",
+    "subtasks": [
+      {
+        "id": "s0",
+        "task_type": "reasoning",
+        "description": "Plan: We need a function that computes factorial of n. Return ONLY a one-line plan.",
+        "expected": {
+          "keywords": [
+            "factorial",
+            "loop",
+            "multiply"
+          ]
+        },
+        "estimated_tokens": 150,
+        "difficulty": 2.0
+      },
+      {
+        "id": "s1",
+        "task_type": "code",
+        "description": "Write Python: def fact(n): return n! (factorial). Return ONLY code.",
+        "expected": {
+          "entry_point": "fact",
+          "value": 120
+        },
+        "estimated_tokens": 200,
+        "difficulty": 2.5
+      },
+      {
+        "id": "s2",
+        "task_type": "math",
+        "description": "Verify: compute fact(5) and output only the number.",
+        "expected": 120,
+        "estimated_tokens": 80,
+        "difficulty": 1.5
+      },
+      {
+        "id": "s3",
+        "task_type": "summarize",
+        "description": "Summarize what the factorial function does in one sentence.",
+        "expected": {
+          "keywords": [
+            "factorial",
+            "product"
+          ]
+        },
+        "estimated_tokens": 80,
+        "difficulty": 1.5
+      }
+    ]
+  },
+  "subtasks": [
+    {
+      "id": "s0",
+      "task_type": "reasoning",
+      "description": "Plan: We need a function that computes factorial of n. Return ONLY a one-line plan.",
+      "estimated_tokens": 150,
+      "difficulty": 2.0
+    },
+    {
+      "id": "s1",
+      "task_type": "code",
+      "description": "Write Python: def fact(n): return n! (factorial). Return ONLY code.",
+      "estimated_tokens": 200,
+      "difficulty": 2.5
+    },
+    {
+      "id": "s2",
+      "task_type": "math",
+      "description": "Verify: compute fact(5) and output only the number.",
+      "estimated_tokens": 80,
+      "difficulty": 1.5
+    },
+    {
+      "id": "s3",
+      "task_type": "summarize",
+      "description": "Summarize what the factorial function does in one sentence.",
+      "estimated_tokens": 80,
+      "difficulty": 1.5
+    }
+  ],
+  "assignments": [
+    {
+      "subtask_id": "s0",
+      "agent": "llama3.1:8b",
+      "mode": "fallback",
+      "estimated_performance": 0.74,
+      "estimated_token_cost": 210.0,
+      "estimated_switch_cost": 1.0666666666666667
+    },
+    {
+      "subtask_id": "s1",
+      "agent": "qwen2.5-coder:7b",
+      "mode": "fallback",
+      "estimated_performance": 0.76,
+      "estimated_token_cost": 240.0,
+      "estimated_switch_cost": 0.0
+    },
+    {
+      "subtask_id": "s2",
+      "agent": "phi4:14b",
+      "mode": "fallback",
+      "estimated_performance": 0.87,
+      "estimated_token_cost": 160.0,
+      "estimated_switch_cost": 0.0
+    },
+    {
+      "subtask_id": "s3",
+      "agent": "llama3.1:8b",
+      "mode": "fallback",
+      "estimated_performance": 0.72,
+      "estimated_token_cost": 112.0,
+      "estimated_switch_cost": 0.0
+    }
+  ],
+  "results": [
+    {
+      "subtask_id": "s0",
+      "agent": "llama3.1:8b",
+      "output": "Define a recursive function `factorial(n)` that returns the product of all positive integers up to `n`.",
+      "latency_ms": 403.8117527961731,
+      "prompt_tokens": 70,
+      "completion_tokens": 23,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": true
+    },
+    {
+      "subtask_id": "s1",
+      "agent": "qwen2.5-coder:7b",
+      "output": "```python\ndef fact(n):\n    if n == 0 or n == 1:\n        return 1\n    else:\n        return n * fact(n - 1)\n```\n\nThis function calculates the factorial of a given number `n` using recursion. The base case is when `n` is either 0 or 1, in which case the function returns 1. For all other values of `n`, the function calls itself with `n-1` and multiplies the result by `n`. This recursive call continues until it reaches the base case, effectively calculating the factorial.",
+      "latency_ms": 8999.044552445412,
+      "prompt_tokens": 70,
+      "completion_tokens": 123,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    },
+    {
+      "subtask_id": "s2",
+      "agent": "phi4:14b",
+      "output": "To solve this problem, we need to calculate \\( \\text{fact}(5) \\), which is the factorial of 5. The factorial function, denoted as \\( n! \\), is defined for a non-negative integer \\( n \\) as the product of all positive integers less than or equal to \\( n \\).\n\nThe formula for calculating the factorial of a number \\( n \\) is:\n\n\\[\nn! = n \\times (n-1) \\times (n-2) \\times \\cdots \\times 3 \\times 2 \\times 1\n\\]\n\nFor \\( n = 5 \\), we have:\n\n\\[\n5! = 5 \\times 4 \\times 3 \\times 2 \\times 1\n\\]\n\nNow, let's compute this step by step:\n\n1. Calculate \\( 5 \\times 4 \\):\n   \\[\n   5 \\times 4 = 20\n   \\]\n\n2. Multiply the result by 3:\n   \\[\n   20 \\times 3 = 60\n   \\]\n\n3. Multiply the result by 2:\n   \\[\n   60 \\times 2 = 120\n   \\]\n\n4. Finally, multiply the result by 1 (which does not change the value):\n   \\[\n   120 \\times 1 = 120\n   \\]\n\nThus, \\( \\text{fact}(5) = 5! = 120 \\).\n\nThe final answer is:\n\n\\[\n120\n\\]",
+      "latency_ms": 3700.242582708597,
+      "prompt_tokens": 65,
+      "completion_tokens": 315,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    },
+    {
+      "subtask_id": "s3",
+      "agent": "llama3.1:8b",
+      "output": "The factorial function calculates the product of all positive integers up to a given number n.",
+      "latency_ms": 349.8727325350046,
+      "prompt_tokens": 60,
+      "completion_tokens": 18,
+      "success": true,
+      "error": null,
+      "swapped_in_for_job": false
+    }
+  ],
+  "job_score": 0.8333333333333333
+}

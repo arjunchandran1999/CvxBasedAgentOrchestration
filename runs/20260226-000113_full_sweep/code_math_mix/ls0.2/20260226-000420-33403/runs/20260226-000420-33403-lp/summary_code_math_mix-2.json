@@ -1,0 +1,75 @@
+{
+  "run_id": "20260226-000420-33403-lp",
+  "job_id": "code_math_mix-2",
+  "routing_mode": "lp",
+  "query": "Write Python: def is_palindrome(s): return True if s reads same reversed. Return ONLY code.",
+  "final_answer": null,
+  "benchmark_name": "code_math_mix",
+  "job_score": 1.0,
+  "active_models": [
+    "gemma2:2b"
+  ],
+  "models_swapped_in": [],
+  "estimated_switch_cost_ms": 0.0,
+  "vram_used_gb": 2.0,
+  "vram_violation": false,
+  "total_latency_ms": 1373.4884764999151,
+  "total_prompt_tokens": 93,
+  "total_completion_tokens": 215,
+  "avg_judge_score": null,
+  "success_rate": 1.0,
+  "plan": [
+    {
+      "id": "t_pal",
+      "task_type": "code",
+      "description": "Write Python: def is_palindrome(s): return True if s reads same reversed. Return ONLY code.",
+      "estimated_tokens": 420,
+      "difficulty": 2.5
+    }
+  ],
+  "task_to_model": {
+    "t_pal": "gemma2:2b"
+  },
+  "loaded_models": [
+    "gemma2:2b"
+  ],
+  "model_task_estimates": [
+    {
+      "subtask_id": "t_pal",
+      "model": "tinyllama:latest",
+      "quality": 0.26,
+      "token_cost": 105.0,
+      "switch_cost": 0.3,
+      "utility_cell": 0.2075,
+      "utility": 0.1475
+    },
+    {
+      "subtask_id": "t_pal",
+      "model": "gemma2:2b",
+      "quality": 0.47,
+      "token_cost": 147.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.3965,
+      "utility": 0.3965
+    },
+    {
+      "subtask_id": "t_pal",
+      "model": "phi3:mini",
+      "quality": 0.41,
+      "token_cost": 252.0,
+      "switch_cost": 0.5333,
+      "utility_cell": 0.284,
+      "utility": 0.1773
+    }
+  ],
+  "oracle": {
+    "best_per_task_by_quality": {
+      "t_pal": "gemma2:2b"
+    },
+    "best_per_task_by_utility": {
+      "t_pal": "gemma2:2b"
+    },
+    "chosen_utility": 0.3965,
+    "lp_objective_value": 0.3965
+  }
+}

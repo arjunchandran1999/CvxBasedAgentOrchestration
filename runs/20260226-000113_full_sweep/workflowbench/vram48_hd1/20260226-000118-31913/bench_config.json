@@ -1,0 +1,28 @@
+{
+  "benchmarks": [
+    "workflowbench"
+  ],
+  "data_dir": "/root/.cache/swarm_data",
+  "limit": 3,
+  "seed": 0,
+  "mix": "grouped",
+  "compare": "both",
+  "lambda_token": 0.5,
+  "lambda_switch": 0.2,
+  "gpu_vram_gb": 48.0,
+  "token_scale": 1000.0,
+  "switch_t_scale_ms": 1500.0,
+  "ollama_base_url": "http://localhost:11434",
+  "agents_file": "/workspace/CvxBasedAgentOrchestration/configs/agents_heavy.json",
+  "decomposer_model": "llama3.1:8b",
+  "planner_model": "llama3.1:8b",
+  "judge_model": "llama3.1:8b",
+  "planner_timeout_s": 120.0,
+  "ensure_models": false,
+  "judge": false,
+  "dry_run": false,
+  "code_eval": false,
+  "output_dir": "runs/20260226-000113_full_sweep/workflowbench/vram48_hd1",
+  "bench_id": null,
+  "horizon_depth": 1
+}

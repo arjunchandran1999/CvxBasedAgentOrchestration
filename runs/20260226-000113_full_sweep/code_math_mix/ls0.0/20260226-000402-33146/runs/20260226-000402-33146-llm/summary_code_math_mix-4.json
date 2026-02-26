@@ -1,0 +1,74 @@
+{
+  "run_id": "20260226-000402-33146-llm",
+  "job_id": "code_math_mix-4",
+  "routing_mode": "llm",
+  "query": "Compute: 17*6. Output only the number.",
+  "final_answer": null,
+  "benchmark_name": "code_math_mix",
+  "job_score": 1.0,
+  "active_models": [
+    "gemma2:2b"
+  ],
+  "models_swapped_in": [],
+  "estimated_switch_cost_ms": 0.0,
+  "vram_used_gb": 2.0,
+  "vram_violation": false,
+  "total_latency_ms": 468.9212944358587,
+  "total_prompt_tokens": 71,
+  "total_completion_tokens": 53,
+  "avg_judge_score": null,
+  "success_rate": 1.0,
+  "plan": [
+    {
+      "id": "t_math2",
+      "task_type": "math",
+      "description": "Compute: 17*6. Output only the number.",
+      "estimated_tokens": 120,
+      "difficulty": 1.5
+    }
+  ],
+  "task_to_model": {
+    "t_math2": "gemma2:2b"
+  },
+  "loaded_models": [
+    "gemma2:2b"
+  ],
+  "model_task_estimates": [
+    {
+      "subtask_id": "t_math2",
+      "model": "tinyllama:latest",
+      "quality": 0.32,
+      "token_cost": 30.0,
+      "switch_cost": 0.3,
+      "utility_cell": 0.305,
+      "utility": 0.305
+    },
+    {
+      "subtask_id": "t_math2",
+      "model": "gemma2:2b",
+      "quality": 0.53,
+      "token_cost": 42.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.509,
+      "utility": 0.509
+    },
+    {
+      "subtask_id": "t_math2",
+      "model": "phi3:mini",
+      "quality": 0.62,
+      "token_cost": 72.0,
+      "switch_cost": 0.5333,
+      "utility_cell": 0.584,
+      "utility": 0.584
+    }
+  ],
+  "oracle": {
+    "best_per_task_by_quality": {
+      "t_math2": "phi3:mini"
+    },
+    "best_per_task_by_utility": {
+      "t_math2": "phi3:mini"
+    },
+    "chosen_utility": 0.509
+  }
+}

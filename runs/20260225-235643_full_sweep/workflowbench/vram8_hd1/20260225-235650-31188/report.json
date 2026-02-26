@@ -1,0 +1,136 @@
+{
+  "bench_dir": "runs/20260225-235643_full_sweep/workflowbench/vram8_hd1/20260225-235650-31188",
+  "n_examples": 3,
+  "modes": {
+    "lp": {
+      "n_scored": 3,
+      "avg_score": 0.7407407407407408,
+      "by_benchmark": {
+        "workflowbench": 0.7407407407407408
+      },
+      "avg_models_swapped_in": 0.3333333333333333,
+      "avg_estimated_switch_cost_ms": 533.3333333333334,
+      "avg_active_model_count": 1.0,
+      "avg_vram_used_gb": 8.0,
+      "run_dir": "runs/20260225-235643_full_sweep/workflowbench/vram8_hd1/20260225-235650-31188/runs/20260225-235650-31188-lp",
+      "vram_violation_rate": 0.0,
+      "vram_violation_count": 0,
+      "score_std": 0.357172,
+      "score_min": 0.3333333333333333,
+      "score_max": 1.0,
+      "avg_total_cost_est": 665.0666666666666,
+      "avg_total_latency_ms": 3965.739362562696,
+      "total_latency_ms_sum": 11897.218087688088,
+      "avg_total_prompt_tokens": 211.66666666666666,
+      "total_prompt_tokens_sum": 635,
+      "avg_total_completion_tokens": 263.0,
+      "total_completion_tokens_sum": 789,
+      "avg_score_per_token_cost": 0.0012286075141690524,
+      "avg_lp_solve_time_ms": 5.76480229695638,
+      "total_lp_solve_time_ms": 17.29440689086914
+    },
+    "llm": {
+      "n_scored": 3,
+      "avg_score": 0.7407407407407408,
+      "by_benchmark": {
+        "workflowbench": 0.7407407407407408
+      },
+      "avg_models_swapped_in": 0.3333333333333333,
+      "avg_estimated_switch_cost_ms": 1533.3333333333333,
+      "avg_active_model_count": 1.0,
+      "avg_vram_used_gb": 2.0,
+      "run_dir": "runs/20260225-235643_full_sweep/workflowbench/vram8_hd1/20260225-235650-31188/runs/20260225-235650-31188-llm",
+      "vram_violation_rate": 0.0,
+      "vram_violation_count": 0,
+      "score_std": 0.357172,
+      "score_min": 0.3333333333333333,
+      "score_max": 1.0,
+      "avg_total_cost_est": 214.33333333333334,
+      "avg_total_latency_ms": 3637.0505541563034,
+      "total_latency_ms_sum": 10911.15166246891,
+      "avg_total_prompt_tokens": 217.33333333333334,
+      "total_prompt_tokens_sum": 652,
+      "avg_total_completion_tokens": 314.6666666666667,
+      "total_completion_tokens_sum": 944,
+      "avg_score_per_token_cost": 0.0035732774856512424
+    }
+  },
+  "comparison_lp_vs_llm": {
+    "avg_score_lp_minus_llm": 0.0,
+    "avg_score_lp_vs_llm_pct": 0.0,
+    "avg_models_swapped_in_lp_minus_llm": 0.0,
+    "avg_models_swapped_in_lp_vs_llm_pct": 0.0,
+    "avg_estimated_switch_cost_ms_lp_minus_llm": -1000.0,
+    "avg_estimated_switch_cost_ms_lp_vs_llm_pct": -65.22,
+    "avg_vram_used_gb_lp_minus_llm": 6.0,
+    "avg_vram_used_gb_lp_vs_llm_pct": 300.0,
+    "avg_total_latency_ms_lp_minus_llm": 328.688808,
+    "avg_total_latency_ms_lp_vs_llm_pct": 9.04,
+    "avg_score_per_token_cost_lp_minus_llm": -0.002345,
+    "avg_score_per_token_cost_lp_vs_llm_pct": -65.62,
+    "vram_violation_rate_lp": 0.0,
+    "vram_violation_rate_llm": 0.0,
+    "jobs_lp_won": 0,
+    "jobs_llm_won": 0,
+    "jobs_tied": 3,
+    "jobs_won_summary": "LP 0 / LLM 0 / tied 3",
+    "routing_divergence_pct": 100.0,
+    "when_differed_lp_better": 0,
+    "when_differed_llm_better": 0,
+    "when_differed_tie": 9,
+    "total_subtasks_compared": 9
+  },
+  "aggregates": {
+    "workflowbench": {
+      "lp": {
+        "mean_score": 0.7407407407407408,
+        "mean_token_cost": 664.5333333333332,
+        "mean_switch_cost_est": 533.3333333333334,
+        "mean_peak_vram_used_gb": 8.0,
+        "score_std": 0.357172
+      },
+      "llm": {
+        "mean_score": 0.7407407407407408,
+        "mean_token_cost": 212.80000000000004,
+        "mean_switch_cost_est": 1533.3333333333333,
+        "mean_peak_vram_used_gb": 2.0,
+        "score_std": 0.357172
+      }
+    }
+  },
+  "pareto_data": {
+    "workflowbench": [
+      {
+        "routing_mode": "lp",
+        "lambda_token": 0.5,
+        "lambda_switch": 0.2,
+        "horizon_depth": 1,
+        "quality_estimator_type": "static",
+        "mean_score": 0.7407407407407408,
+        "mean_token_cost": 664.5333333333332,
+        "mean_switch_cost_est": 533.3333333333334,
+        "mean_peak_vram_used_gb": 8.0
+      },
+      {
+        "routing_mode": "llm",
+        "lambda_token": 0.5,
+        "lambda_switch": 0.2,
+        "horizon_depth": 1,
+        "quality_estimator_type": "static",
+        "mean_score": 0.7407407407407408,
+        "mean_token_cost": 212.80000000000004,
+        "mean_switch_cost_est": 1533.3333333333333,
+        "mean_peak_vram_used_gb": 2.0
+      }
+    ]
+  },
+  "pareto_frontier_indices": {
+    "workflowbench": [
+      1,
+      0
+    ]
+  },
+  "report_pareto_csv": "runs/20260225-235643_full_sweep/workflowbench/vram8_hd1/20260225-235650-31188/report_pareto.csv",
+  "report_csv": "runs/20260225-235643_full_sweep/workflowbench/vram8_hd1/20260225-235650-31188/report.csv",
+  "outputs_jsonl": "runs/20260225-235643_full_sweep/workflowbench/vram8_hd1/20260225-235650-31188/outputs.jsonl"
+}

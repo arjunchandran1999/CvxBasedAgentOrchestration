@@ -1,0 +1,132 @@
+{
+  "run_id": "20260226-000402-33146-lp",
+  "job_id": "code_math_mix-3",
+  "routing_mode": "lp",
+  "routing_source": "lp",
+  "query": "John has 3 apples and buys 4 more. How many apples now? Output only the number.",
+  "benchmark_name": "code_math_mix",
+  "benchmark_reference": {
+    "task_id": "t_math1",
+    "task_type": "math",
+    "expected": 7,
+    "estimated_tokens": 120,
+    "difficulty": 1.0
+  },
+  "subtasks": [
+    {
+      "id": "t_math1",
+      "task_type": "math",
+      "description": "John has 3 apples and buys 4 more. How many apples now? Output only the number.",
+      "estimated_tokens": 120,
+      "difficulty": 1.0
+    }
+  ],
+  "assignments": [
+    {
+      "subtask_id": "t_math1",
+      "agent": "phi3:mini",
+      "mode": "lp",
+      "estimated_performance": 0.65,
+      "estimated_token_cost": 72.0,
+      "estimated_switch_cost": 0.5333333333333333
+    }
+  ],
+  "orchestration": {
+    "routing_mode": "lp",
+    "routing_source": "lp",
+    "planner_model": null,
+    "assignments": [
+      {
+        "subtask_id": "t_math1",
+        "role": "math",
+        "model": "phi3:mini",
+        "agent_id": "math|phi3:mini"
+      }
+    ],
+    "active_models": [
+      "phi3:mini"
+    ],
+    "active_role_agents": [
+      "math|phi3:mini"
+    ]
+  },
+  "results": [
+    {
+      "subtask_id": "t_math1",
+      "agent": "phi3:mini",
+      "output": "",
+      "latency_ms": null,
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "success": false,
+      "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "swapped_in_for_job": true
+    }
+  ],
+  "evaluations": [
+    {
+      "subtask_id": "t_math1",
+      "success": false,
+      "judge_score": null,
+      "judge_rationale": null
+    }
+  ],
+  "final_answer": null,
+  "active_models": [
+    "phi3:mini"
+  ],
+  "active_roles": [
+    "math"
+  ],
+  "active_role_agents": [
+    "math|phi3:mini"
+  ],
+  "loaded_models_before": [
+    "gemma2:2b"
+  ],
+  "loaded_models_at_router": [
+    "gemma2:2b"
+  ],
+  "model_task_estimates": [
+    {
+      "subtask_id": "t_math1",
+      "model": "tinyllama:latest",
+      "quality": 0.35,
+      "token_cost": 30.0,
+      "switch_cost": 0.3,
+      "utility_cell": 0.335,
+      "utility": 0.335
+    },
+    {
+      "subtask_id": "t_math1",
+      "model": "gemma2:2b",
+      "quality": 0.45,
+      "token_cost": 42.0,
+      "switch_cost": 0.0,
+      "utility_cell": 0.429,
+      "utility": 0.429
+    },
+    {
+      "subtask_id": "t_math1",
+      "model": "phi3:mini",
+      "quality": 0.65,
+      "token_cost": 72.0,
+      "switch_cost": 0.5333,
+      "utility_cell": 0.614,
+      "utility": 0.614
+    }
+  ],
+  "oracle": {
+    "best_per_task_by_quality": {
+      "t_math1": "phi3:mini"
+    },
+    "best_per_task_by_utility": {
+      "t_math1": "phi3:mini"
+    },
+    "chosen_utility": 0.614,
+    "lp_objective_value": 0.614
+  },
+  "vram_used_gb": 3.0,
+  "vram_violation": false,
+  "job_score": 0.0
+}

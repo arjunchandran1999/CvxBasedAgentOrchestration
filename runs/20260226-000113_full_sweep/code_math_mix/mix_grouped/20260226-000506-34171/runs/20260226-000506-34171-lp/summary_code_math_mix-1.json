@@ -1,0 +1,75 @@
+{
+  "run_id": "20260226-000506-34171-lp",
+  "job_id": "code_math_mix-1",
+  "routing_mode": "lp",
+  "query": "Write Python: def add(a,b): return a+b. Return ONLY code.",
+  "final_answer": null,
+  "benchmark_name": "code_math_mix",
+  "job_score": 1.0,
+  "active_models": [
+    "gemma2:2b"
+  ],
+  "models_swapped_in": [
+    "gemma2:2b"
+  ],
+  "estimated_switch_cost_ms": 600.0,
+  "vram_used_gb": 2.0,
+  "vram_violation": false,
+  "total_latency_ms": 1338.2877297699451,
+  "total_prompt_tokens": 87,
+  "total_completion_tokens": 151,
+  "avg_judge_score": null,
+  "success_rate": 1.0,
+  "plan": [
+    {
+      "id": "t_add",
+      "task_type": "code",
+      "description": "Write Python: def add(a,b): return a+b. Return ONLY code.",
+      "estimated_tokens": 280,
+      "difficulty": 1.5
+    }
+  ],
+  "task_to_model": {
+    "t_add": "gemma2:2b"
+  },
+  "loaded_models": [],
+  "model_task_estimates": [
+    {
+      "subtask_id": "t_add",
+      "model": "tinyllama:latest",
+      "quality": 0.32,
+      "token_cost": 70.0,
+      "switch_cost": 0.3,
+      "utility_cell": 0.285,
+      "utility": 0.135
+    },
+    {
+      "subtask_id": "t_add",
+      "model": "gemma2:2b",
+      "quality": 0.42,
+      "token_cost": 98.0,
+      "switch_cost": 0.4,
+      "utility_cell": 0.371,
+      "utility": 0.171
+    },
+    {
+      "subtask_id": "t_add",
+      "model": "phi3:mini",
+      "quality": 0.47,
+      "token_cost": 168.0,
+      "switch_cost": 0.5333,
+      "utility_cell": 0.386,
+      "utility": 0.1193
+    }
+  ],
+  "oracle": {
+    "best_per_task_by_quality": {
+      "t_add": "phi3:mini"
+    },
+    "best_per_task_by_utility": {
+      "t_add": "gemma2:2b"
+    },
+    "chosen_utility": 0.171,
+    "lp_objective_value": 0.171
+  }
+}
