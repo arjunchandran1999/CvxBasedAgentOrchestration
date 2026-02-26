@@ -39,6 +39,9 @@ def main() -> int:
     import argparse
     ap = argparse.ArgumentParser(description="Run full benchmark sweep")
     ap.add_argument("--dry_run", action="store_true", help="Skip actual runs, only create dir structure")
+    ap.add_argument("--estimator_in", default=None, help="Optional estimator state JSON to load for all runs")
+    ap.add_argument("--freeze_estimator", action="store_true", help="Disable online estimator updates during runs")
+    ap.add_argument("--estimator_tag", default="static", help="Tag recorded for reporting (e.g. static, trained)")
     args = ap.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent
@@ -58,12 +61,24 @@ def main() -> int:
 
     dry = getattr(args, "dry_run", False)
     gpu_vram_gb = 48
+    estimator_in = getattr(args, "estimator_in", None)
+    freeze_est = bool(getattr(args, "freeze_estimator", False))
+    estimator_tag = str(getattr(args, "estimator_tag", "static"))
+
+    def _maybe_estimator_flags(cmd: list[str]) -> list[str]:
+        if estimator_in:
+            cmd = cmd + ["--estimator_in", str(estimator_in)]
+        if freeze_est:
+            cmd = cmd + ["--freeze_estimator"]
+        if estimator_tag:
+            cmd = cmd + ["--estimator_tag", estimator_tag]
+        return cmd
 
     # --- WorkflowBench (DAG, VRAM stress) ---
     print("\n=== WorkflowBench ===")
     for hd in [1, 3]:
         out = root_dir / "workflowbench" / f"vram{gpu_vram_gb}_hd{hd}"
-        _run([
+        _run(_maybe_estimator_flags([
             "swarm", "bench",
             "--benchmark", "workflowbench",
             "--agents_file", str(repo_root / agents_heavy),
@@ -72,13 +87,13 @@ def main() -> int:
             "--limit", "3",
             "--horizon_depth", str(hd),
             "--output_dir", str(out),
-        ], dry_run=dry)
+        ]), dry_run=dry)
 
     # --- CodeMathMix (flat, lambda sweep) ---
     print("\n=== CodeMathMix ===")
     for lam_sw in [0.0, 0.2, 0.5, 1.0]:
         out = root_dir / "code_math_mix" / f"ls{lam_sw}"
-        _run([
+        _run(_maybe_estimator_flags([
             "swarm", "bench",
             "--benchmark", "code_math_mix",
             "--agents_file", str(repo_root / agents_fast),
@@ -88,11 +103,11 @@ def main() -> int:
             "--limit", "4",
             "--mix", "interleave",
             "--output_dir", str(out),
-        ], dry_run=dry)
+        ]), dry_run=dry)
 
     for mix in ["grouped", "interleave"]:
         out = root_dir / "code_math_mix" / f"mix_{mix}"
-        _run([
+        _run(_maybe_estimator_flags([
             "swarm", "bench",
             "--benchmark", "code_math_mix",
             "--agents_file", str(repo_root / agents_fast),
@@ -102,13 +117,13 @@ def main() -> int:
             "--limit", "4",
             "--mix", mix,
             "--output_dir", str(out),
-        ], dry_run=dry)
+        ]), dry_run=dry)
 
     # --- AgenticBench (if available) ---
     try:
         print("\n=== AgenticBench ===")
         out = root_dir / "agentic_bench" / f"vram{gpu_vram_gb}_hd2"
-        _run([
+        _run(_maybe_estimator_flags([
             "swarm", "bench",
             "--benchmark", "agentic_bench",
             "--agents_file", str(repo_root / agents_heavy),
@@ -117,7 +132,7 @@ def main() -> int:
             "--limit", "1",
             "--horizon_depth", "2",
             "--output_dir", str(out),
-        ], dry_run=dry)
+        ]), dry_run=dry)
     except Exception:
         print("  AgenticBench skipped (not registered or error)")
 
@@ -141,7 +156,7 @@ def main() -> int:
                     "lambda_switch": config.get("lambda_switch", 0.2),
                     "horizon_depth": config.get("horizon_depth", 1),
                     "gpu_vram_gb": config.get("gpu_vram_gb", 0),
-                    "quality_estimator_type": "static",
+                    "quality_estimator_type": config.get("estimator_tag", config.get("quality_estimator_type", "static")),
                     "mean_score": mode_data.get("avg_score"),
                     "mean_token_cost": None,
                     "mean_switch_cost_est": mode_data.get("avg_estimated_switch_cost_ms"),

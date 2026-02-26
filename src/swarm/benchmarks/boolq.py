@@ -5,6 +5,8 @@ import re
 from dataclasses import dataclass
 
 from .registry import BenchmarkExample, register
+from ..agents import SubtaskType
+from ..tasks import Subtask
 
 
 def _normalize_bool(ans: str) -> str | None:
@@ -58,6 +60,18 @@ class BoolQ:
         pred = _normalize_bool(final_answer or "")
         gold = str(example.reference.get("label"))
         return {"metric": "accuracy", "score": 1.0 if pred == gold else 0.0}
+
+    def make_subtasks(self, *, example: BenchmarkExample) -> list[Subtask]:
+        # Single-shot benchmark: avoid decomposition + synthesis confounds.
+        return [
+            Subtask(
+                id="t1",
+                task_type=SubtaskType.REASONING,
+                description=example.query,
+                estimated_tokens=256,
+                difficulty=1.5,
+            )
+        ]
 
 
 register(BoolQ())

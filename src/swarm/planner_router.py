@@ -8,7 +8,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from .agents import Agent
-from .estimator import QualityEstimator, estimate_token_cost, normalized_switch_cost
+from .estimator import QualityEstimator, normalized_switch_cost
 from .ollama_client import OllamaClient
 from .routing import Assignment, RoutingResult
 from .tasks import Subtask
@@ -166,7 +166,7 @@ async def llm_assign(
     assignments: list[Assignment] = []
     for s, ag in assignments_raw:
         p = estimator.predict(ag, s)
-        tok = estimate_token_cost(ag, s)
+        tok = estimator.estimate_token_cost(ag, s)
         sw = 0.0 if ag.name in loaded_models else normalized_switch_cost(ag, t_scale_ms=switch_t_scale_ms)
         assignments.append(
             Assignment(
@@ -222,7 +222,7 @@ def _fallback(
         best = None
         for ag in active:
             p = estimator.predict(ag, s)
-            tok = estimate_token_cost(ag, s)
+            tok = estimator.estimate_token_cost(ag, s)
             sw = 0.0 if ag.name in loaded_models else normalized_switch_cost(ag, t_scale_ms=switch_t_scale_ms)
             util = p - lambda_token * (tok / token_scale) - lambda_switch * sw
             if best is None or util > best[0]:

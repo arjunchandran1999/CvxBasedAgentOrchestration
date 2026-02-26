@@ -6,7 +6,7 @@ import cvxpy as cp
 import numpy as np
 
 from .agents import Agent
-from .estimator import QualityEstimator, estimate_token_cost, normalized_switch_cost
+from .estimator import QualityEstimator, normalized_switch_cost
 from .routing import Assignment, RoutingResult
 from .tasks import Subtask
 
@@ -177,7 +177,7 @@ class SwarmOptimizer:
         for i, a in enumerate(agents):
             for m, s in enumerate(subtasks):
                 P[i, m] = estimator.predict(a, s)
-                Ctok[i, m] = estimate_token_cost(a, s) / float(self.config.token_scale)
+                Ctok[i, m] = estimator.estimate_token_cost(a, s) / float(self.config.token_scale)
 
         Csw = np.zeros(I, dtype=float)
         for i, a in enumerate(agents):
@@ -289,7 +289,7 @@ class SwarmOptimizer:
             best = None
             for a in active:
                 p = estimator.predict(a, s)
-                tok = estimate_token_cost(a, s)
+                tok = estimator.estimate_token_cost(a, s)
                 sw = (
                     0.0
                     if a.name in loaded_models

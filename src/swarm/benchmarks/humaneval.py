@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 from .registry import BenchmarkExample, register
 from .code_eval import code_eval_enabled, extract_python_code, run_code_in_subprocess
+from ..agents import SubtaskType
+from ..tasks import Subtask
 
 
 @dataclass(frozen=True)
@@ -72,6 +74,17 @@ class HumanEval:
         if "def " in code:
             return {"metric": "heuristic_contains_def", "score": 0.5}
         return {"metric": "heuristic_contains_def", "score": 0.0}
+
+    def make_subtasks(self, *, example: BenchmarkExample) -> list[Subtask]:
+        return [
+            Subtask(
+                id="t1",
+                task_type=SubtaskType.CODE,
+                description=example.query,
+                estimated_tokens=1200,
+                difficulty=3.5,
+            )
+        ]
 
 
 register(HumanEval())

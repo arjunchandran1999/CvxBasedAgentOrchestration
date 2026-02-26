@@ -450,7 +450,8 @@ def aggregate_reports(*, bench_dir: Path, run_dirs: dict[str, Path], benchmarks:
     lambda_token = float(bench_config.get("lambda_token", 0.5))
     lambda_switch = float(bench_config.get("lambda_switch", 0.2))
     horizon_depth = int(bench_config.get("horizon_depth", 1))
-    quality_estimator_type = str(bench_config.get("quality_estimator_type", "static"))
+    # Back-compat: older runs used quality_estimator_type; newer runs use estimator_tag.
+    quality_estimator_type = str(bench_config.get("estimator_tag", bench_config.get("quality_estimator_type", "static")))
 
     report["aggregates"] = {}
     report["pareto_data"] = {}

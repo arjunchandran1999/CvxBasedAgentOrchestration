@@ -48,6 +48,10 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--planner_timeout_s", type=float, default=120.0)
     run.add_argument("--dry_run", action="store_true", help="No Ollama calls; generates stub outputs")
     run.add_argument("--judge", action="store_true", help="Use an LLM judge to score outputs (extra calls)")
+    run.add_argument("--estimator_in", default=None, help="Path to estimator state JSON to load (quality + token multiplier)")
+    run.add_argument("--estimator_out", default=None, help="Path to write estimator state JSON after run")
+    run.add_argument("--freeze_estimator", action="store_true", help="Disable online estimator updates during the run")
+    run.add_argument("--estimator_tag", default="static", help="Tag recorded for reporting (e.g. static, trained)")
 
     run.add_argument("--runs_dir", default="runs", help="Base output dir for telemetry")
 
@@ -86,6 +90,10 @@ def _build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--mix", choices=["grouped", "interleave"], default="grouped")
     bench.add_argument("--output_dir", default="bench_runs")
     bench.add_argument("--horizon_depth", type=int, default=1, help="MPC lookahead (0=layer-by-layer DAG, 1+=receding horizon)")
+    bench.add_argument("--estimator_in", default=None, help="Path to estimator state JSON to load (quality + token multiplier)")
+    bench.add_argument("--estimator_out", default=None, help="Path to write estimator state JSON after bench (use {mode} to avoid clobber)")
+    bench.add_argument("--freeze_estimator", action="store_true", help="Disable online estimator updates during the bench")
+    bench.add_argument("--estimator_tag", default="static", help="Tag recorded for reporting (e.g. static, trained)")
 
     exp = sub.add_parser("experiment", help="Run benchmark sweeps (lambda_switch, VRAM) and suites")
     exp.add_argument("--suite", choices=["workflow_sweep", "code_math_sweep"], default=None)
@@ -113,6 +121,9 @@ def _build_parser() -> argparse.ArgumentParser:
     exp.add_argument("--output_dir", default="experiments")
     exp.add_argument("--exp_id", default=None)
     exp.add_argument("--horizon_depth", type=int, default=1, help="MPC lookahead for DAG benchmarks")
+    exp.add_argument("--estimator_in", default=None, help="Path to estimator state JSON to load for all sweep runs")
+    exp.add_argument("--freeze_estimator", action="store_true", help="Disable online estimator updates during sweep runs")
+    exp.add_argument("--estimator_tag", default="static", help="Tag recorded for reporting (e.g. static, trained)")
 
     return p
 
@@ -158,6 +169,9 @@ async def _run(args: argparse.Namespace) -> int:
         switch_t_scale_ms=args.switch_t_scale_ms,
         dry_run=args.dry_run,
         judge=args.judge,
+        estimator_state_in=getattr(args, "estimator_in", None),
+        estimator_state_out=getattr(args, "estimator_out", None),
+        estimator_updates=not bool(getattr(args, "freeze_estimator", False)),
         ollama_base_url=args.ollama_base_url,
         agents=agents,
         decomposer_model=args.decomposer_model,
@@ -253,6 +267,10 @@ def main() -> None:
                 output_dir=args.output_dir,
                 bench_id=None,
                 horizon_depth=getattr(args, "horizon_depth", 1),
+                estimator_state_in=getattr(args, "estimator_in", None),
+                estimator_state_out=getattr(args, "estimator_out", None),
+                estimator_updates=not bool(getattr(args, "freeze_estimator", False)),
+                estimator_tag=getattr(args, "estimator_tag", "static"),
             )
             return await run_bench(cfg, console=console)
 
@@ -286,6 +304,10 @@ def main() -> None:
                 code_eval=args.code_eval,
                 output_dir="bench_runs",
                 bench_id=None,
+                estimator_state_in=getattr(args, "estimator_in", None),
+                estimator_state_out=None,
+                estimator_updates=not bool(getattr(args, "freeze_estimator", False)),
+                estimator_tag=getattr(args, "estimator_tag", "static"),
                 horizon_depth=getattr(args, "horizon_depth", 1),
             )
             cfg = ExperimentConfig(

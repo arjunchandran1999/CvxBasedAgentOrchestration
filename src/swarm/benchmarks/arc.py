@@ -5,6 +5,8 @@ import re
 from dataclasses import dataclass
 
 from .registry import BenchmarkExample, register
+from ..agents import SubtaskType
+from ..tasks import Subtask
 
 
 def _normalize_choice(ans: str) -> str | None:
@@ -55,6 +57,17 @@ class ARCChallenge:
         pred = _normalize_choice(final_answer or "")
         gold = str(example.reference.get("answer"))
         return {"metric": "accuracy", "score": 1.0 if pred == gold else 0.0}
+
+    def make_subtasks(self, *, example: BenchmarkExample) -> list[Subtask]:
+        return [
+            Subtask(
+                id="t1",
+                task_type=SubtaskType.REASONING,
+                description=example.query,
+                estimated_tokens=384,
+                difficulty=2.5,
+            )
+        ]
 
 
 register(ARCChallenge())

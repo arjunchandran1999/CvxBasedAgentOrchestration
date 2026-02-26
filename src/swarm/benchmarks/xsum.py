@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from rouge_score import rouge_scorer
 
 from .registry import BenchmarkExample, register
+from ..agents import SubtaskType
+from ..tasks import Subtask
 
 
 _scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
@@ -50,6 +52,17 @@ class XSum:
             return {"metric": "rougeL", "score": 0.0}
         s = _scorer.score(ref, pred)["rougeL"].fmeasure
         return {"metric": "rougeL", "score": float(s)}
+
+    def make_subtasks(self, *, example: BenchmarkExample) -> list[Subtask]:
+        return [
+            Subtask(
+                id="t1",
+                task_type=SubtaskType.SUMMARIZE,
+                description=example.query,
+                estimated_tokens=200,
+                difficulty=2.0,
+            )
+        ]
 
 
 register(XSum())

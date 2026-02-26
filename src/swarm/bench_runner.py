@@ -42,6 +42,10 @@ class BenchConfig:
     output_dir: str = "bench_runs"
     bench_id: str | None = None
     horizon_depth: int = 1
+    estimator_state_in: str | None = None
+    estimator_state_out: str | None = None
+    estimator_updates: bool = True
+    estimator_tag: str = "static"
 
 
 def _set_hf_cache(data_dir: str) -> None:
@@ -109,6 +113,14 @@ async def run_bench(cfg: BenchConfig, *, console: Console) -> int:
         run_id = f"{bench_id}-{mode}"
         run_dir = make_run_dir(str(bench_dir / "runs"), run_id=run_id)
         run_dirs[mode] = Path(run_dir)
+        estimator_out = cfg.estimator_state_out
+        if estimator_out:
+            if "{mode}" in estimator_out:
+                estimator_out = estimator_out.replace("{mode}", mode)
+            elif cfg.compare == "both":
+                # Avoid clobber when running lp+llm in same bench.
+                p = Path(estimator_out)
+                estimator_out = str(p.with_name(p.stem + f".{mode}" + p.suffix))
         orch = SwarmOrchestrator(
             run_id=run_id,
             run_dir=Path(run_dir),
@@ -120,6 +132,9 @@ async def run_bench(cfg: BenchConfig, *, console: Console) -> int:
             switch_t_scale_ms=cfg.switch_t_scale_ms,
             dry_run=cfg.dry_run,
             judge=cfg.judge,
+            estimator_state_in=cfg.estimator_state_in,
+            estimator_state_out=estimator_out,
+            estimator_updates=cfg.estimator_updates,
             ollama_base_url=cfg.ollama_base_url,
             agents=agents,
             decomposer_model=cfg.decomposer_model,
@@ -161,6 +176,9 @@ async def run_bench(cfg: BenchConfig, *, console: Console) -> int:
                     benchmark_reference=ex.reference,
                     subtasks_override=subtasks_override,
                 )
+
+        # Persist estimator state (optional) for this mode run.
+        orch.save_estimator_state()
 
     # Score by reading artifacts and applying benchmark scorers.
     report = aggregate_reports(

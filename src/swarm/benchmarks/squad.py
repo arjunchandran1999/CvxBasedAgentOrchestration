@@ -5,6 +5,8 @@ import re
 from dataclasses import dataclass
 
 from .registry import BenchmarkExample, register
+from ..agents import SubtaskType
+from ..tasks import Subtask
 
 
 def _normalize(text: str) -> str:
@@ -54,6 +56,17 @@ class SQuAD:
         golds = [_normalize(a) for a in answers if isinstance(a, str)]
         em = 1.0 if pred and pred in set(golds) else 0.0
         return {"metric": "exact_match", "score": em}
+
+    def make_subtasks(self, *, example: BenchmarkExample) -> list[Subtask]:
+        return [
+            Subtask(
+                id="t1",
+                task_type=SubtaskType.EXTRACTION,
+                description=example.query,
+                estimated_tokens=256,
+                difficulty=2.0,
+            )
+        ]
 
 
 register(SQuAD())

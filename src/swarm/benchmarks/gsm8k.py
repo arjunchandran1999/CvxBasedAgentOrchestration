@@ -5,6 +5,8 @@ import re
 from dataclasses import dataclass
 
 from .registry import BenchmarkExample, register
+from ..agents import SubtaskType
+from ..tasks import Subtask
 
 
 def _extract_final_number(text: str) -> str | None:
@@ -66,6 +68,17 @@ class GSM8K:
         pred = _extract_final_number(final_answer or "")
         gold = example.reference.get("answer")
         return {"metric": "accuracy", "score": 1.0 if (pred is not None and gold is not None and pred == gold) else 0.0}
+
+    def make_subtasks(self, *, example: BenchmarkExample) -> list[Subtask]:
+        return [
+            Subtask(
+                id="t1",
+                task_type=SubtaskType.MATH,
+                description=example.query,
+                estimated_tokens=512,
+                difficulty=3.0,
+            )
+        ]
 
 
 register(GSM8K())

@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 from .registry import BenchmarkExample, register
 from .code_eval import code_eval_enabled, extract_python_code, run_code_in_subprocess
+from ..agents import SubtaskType
+from ..tasks import Subtask
 
 
 @dataclass(frozen=True)
@@ -53,6 +55,17 @@ class MBPP:
         if not code:
             return {"metric": "heuristic_code_present", "score": 0.0}
         return {"metric": "heuristic_code_present", "score": 1.0 if "def " in code else 0.5}
+
+    def make_subtasks(self, *, example: BenchmarkExample) -> list[Subtask]:
+        return [
+            Subtask(
+                id="t1",
+                task_type=SubtaskType.CODE,
+                description=example.query,
+                estimated_tokens=1200,
+                difficulty=3.0,
+            )
+        ]
 
 
 register(MBPP())

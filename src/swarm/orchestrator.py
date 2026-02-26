@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .agents import Agent, default_agents
-from .estimator import QualityEstimator, estimate_token_cost, normalized_switch_cost
+from .estimator import QualityEstimator, normalized_switch_cost
 from .executor import SubtaskResult, execute
 from .evaluator import Evaluation, evaluate
 from .ollama_client import OllamaClient
@@ -48,7 +48,7 @@ def _compute_estimates_and_oracle(
         best_u_model = None
         for a in agents:
             quality = estimator.predict(a, s)
-            tok_raw = estimate_token_cost(a, s)
+            tok_raw = estimator.estimate_token_cost(a, s)
             tok_norm = tok_raw / token_scale
             sw = 0.0 if a.name in loaded_models else normalized_switch_cost(a, t_scale_ms=switch_t_scale_ms)
             utility_cell = quality - lambda_token * tok_norm  # cell utility before switch
@@ -134,6 +134,9 @@ class SwarmOrchestrator:
         switch_t_scale_ms: float = 1500.0,
         dry_run: bool = False,
         judge: bool = False,
+        estimator_state_in: str | None = None,
+        estimator_state_out: str | None = None,
+        estimator_updates: bool = True,
         ollama_base_url: str = "http://localhost:11434",
         agents: list[Agent] | None = None,
         decomposer_model: str = "llama3.1:8b",
@@ -158,9 +161,18 @@ class SwarmOrchestrator:
         self.switch_t_scale_ms = float(switch_t_scale_ms)
         self.dry_run = dry_run
         self.judge = judge
+        self.estimator_state_in = str(estimator_state_in) if estimator_state_in else None
+        self.estimator_state_out = str(estimator_state_out) if estimator_state_out else None
+        self.estimator_updates = bool(estimator_updates)
 
         self.agents = agents or default_agents()
-        self.estimator = QualityEstimator()
+        if self.estimator_state_in:
+            try:
+                self.estimator = QualityEstimator.load_json(self.estimator_state_in)
+            except Exception:
+                self.estimator = QualityEstimator()
+        else:
+            self.estimator = QualityEstimator()
         self.estimator.ensure_priors(self.agents)
 
         self.ollama = OllamaClient(base_url=ollama_base_url, dry_run=dry_run)
@@ -181,6 +193,12 @@ class SwarmOrchestrator:
         )
 
         self.loaded_models: set[str] = set()
+
+    def save_estimator_state(self, path: str | None = None) -> None:
+        p = path or self.estimator_state_out
+        if not p:
+            return
+        self.estimator.save_json(str(p))
 
     async def run_job(
         self,
@@ -432,22 +450,45 @@ class SwarmOrchestrator:
                 )
             except Exception:
                 final_answer = None
+        else:
+            # For single-shot benchmarks where we used make_subtasks(), we can score without synthesis
+            # by taking the only subtask output as the final answer.
+            if final_answer is None and len(results) == 1:
+                try:
+                    final_answer = str(results[0].output)
+                except Exception:
+                    final_answer = None
 
         # Update estimator.
         subtask_by_id = {s.id: s for s in subtasks}
         agent_by_name = {a.name: a for a in self.agents}
-        for a in routing.assignments:
-            s = subtask_by_id.get(a.subtask_id)
-            if s is None:
-                continue
-            ev = eval_by_id.get(a.subtask_id)
-            if ev is None:
-                continue
-            observed = ev.judge_score if ev.judge_score is not None else (1.0 if ev.success else 0.0)
-            ag = agent_by_name.get(a.agent)
-            if ag is None:
-                continue
-            self.estimator.update(agent=ag, subtask_type=s.task_type, observed_score=float(observed))
+        if self.estimator_updates:
+            result_by_subtask = {r.subtask_id: r for r in results}
+            for a in routing.assignments:
+                s = subtask_by_id.get(a.subtask_id)
+                if s is None:
+                    continue
+                ev = eval_by_id.get(a.subtask_id)
+                if ev is None:
+                    continue
+                # Prefer: judge score (0..1) -> benchmark-derived subtask score -> binary success.
+                observed = None
+                if ev.judge_score is not None:
+                    observed = float(ev.judge_score)
+                elif computed_subtask_scores and a.subtask_id in computed_subtask_scores:
+                    observed = float(computed_subtask_scores[a.subtask_id])
+                else:
+                    observed = 1.0 if ev.success else 0.0
+                ag = agent_by_name.get(a.agent)
+                if ag is None:
+                    continue
+                self.estimator.update(agent=ag, subtask_type=s.task_type, observed_score=float(observed))
+
+                # Cost-estimator training: calibrate estimated_tokens to actual used tokens when available.
+                r = result_by_subtask.get(a.subtask_id)
+                if r and isinstance(r.prompt_tokens, int) and isinstance(r.completion_tokens, int):
+                    actual_tokens = int(r.prompt_tokens) + int(r.completion_tokens)
+                    self.estimator.update_token_multiplier(agent=ag, estimated_tokens=int(s.estimated_tokens), actual_tokens=actual_tokens)
 
         # Telemetry: per-job
         self.telemetry.log_job(
@@ -882,17 +923,25 @@ class SwarmOrchestrator:
             eval_by_id = {e.subtask_id: e for e in evals}
             subtask_by_id = {s.id: s for s in ready_subtasks}
             agent_by_name = {a.name: a for a in self.agents}
-            for a in ready_assignments:
-                s = subtask_by_id.get(a.subtask_id)
-                if s is None:
-                    continue
-                ev = eval_by_id.get(a.subtask_id)
-                if ev is None:
-                    continue
-                observed = ev.judge_score if ev.judge_score is not None else (1.0 if ev.success else 0.0)
-                ag = agent_by_name.get(a.agent)
-                if ag is not None:
+            if self.estimator_updates:
+                result_by_subtask = {r.subtask_id: r for r in results}
+                for a in ready_assignments:
+                    s = subtask_by_id.get(a.subtask_id)
+                    if s is None:
+                        continue
+                    ev = eval_by_id.get(a.subtask_id)
+                    if ev is None:
+                        continue
+                    observed = float(ev.judge_score) if ev.judge_score is not None else (1.0 if ev.success else 0.0)
+                    ag = agent_by_name.get(a.agent)
+                    if ag is None:
+                        continue
                     self.estimator.update(agent=ag, subtask_type=s.task_type, observed_score=float(observed))
+
+                    r = result_by_subtask.get(a.subtask_id)
+                    if r and isinstance(r.prompt_tokens, int) and isinstance(r.completion_tokens, int):
+                        actual_tokens = int(r.prompt_tokens) + int(r.completion_tokens)
+                        self.estimator.update_token_multiplier(agent=ag, estimated_tokens=int(s.estimated_tokens), actual_tokens=actual_tokens)
 
             self.loaded_models = active_models
 
