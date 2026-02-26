@@ -24,6 +24,12 @@ htmlcov/
 .env
 .env.*
 
+# Generated runs / telemetry (project defaults)
+runs/
+bench_runs/
+*.log
+*.jsonl
+
 # Common data / model artifact formats (avoid committing large files)
 *.csv
 *.tsv
