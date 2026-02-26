@@ -63,16 +63,16 @@ def main() -> int:
     print("\n=== WorkflowBench ===")
     for hd in [1, 3]:
         out = root_dir / "workflowbench" / f"vram{gpu_vram_gb}_hd{hd}"
-            _run([
-                "swarm", "bench",
-                "--benchmark", "workflowbench",
-                "--agents_file", str(repo_root / agents_heavy),
-                "--gpu_vram_gb", str(gpu_vram_gb),
-                "--compare", "both",
-                "--limit", "3",
-                "--horizon_depth", str(hd),
-                "--output_dir", str(out),
-            ], dry_run=dry)
+        _run([
+            "swarm", "bench",
+            "--benchmark", "workflowbench",
+            "--agents_file", str(repo_root / agents_heavy),
+            "--gpu_vram_gb", str(gpu_vram_gb),
+            "--compare", "both",
+            "--limit", "3",
+            "--horizon_depth", str(hd),
+            "--output_dir", str(out),
+        ], dry_run=dry)
 
     # --- CodeMathMix (flat, lambda sweep) ---
     print("\n=== CodeMathMix ===")
