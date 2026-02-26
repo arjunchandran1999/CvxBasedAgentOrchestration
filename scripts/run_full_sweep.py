@@ -3,7 +3,7 @@
 Master experiment script: runs all key benchmarks and sweeps into a timestamped directory.
 
 Creates: runs/<timestamp>_full_sweep/
-  - workflowbench/... (VRAM 8GB and 24GB, horizon_depth 1 and 3)
+  - workflowbench/... (VRAM 48GB, horizon_depth 1 and 3)
   - code_math_mix/... (lambda_switch sweep, grouped and interleave)
   - agentic_bench/... (if available)
   - meta_report.json (aggregated Pareto data from all report.json files)
@@ -57,17 +57,17 @@ def main() -> int:
         agents_fast = agents_heavy
 
     dry = getattr(args, "dry_run", False)
+    gpu_vram_gb = 48
 
     # --- WorkflowBench (DAG, VRAM stress) ---
     print("\n=== WorkflowBench ===")
-    for vram in [8, 24]:
-        for hd in [1, 3]:
-            out = root_dir / "workflowbench" / f"vram{vram}_hd{hd}"
+    for hd in [1, 3]:
+        out = root_dir / "workflowbench" / f"vram{gpu_vram_gb}_hd{hd}"
             _run([
                 "swarm", "bench",
                 "--benchmark", "workflowbench",
                 "--agents_file", str(repo_root / agents_heavy),
-                "--gpu_vram_gb", str(vram),
+                "--gpu_vram_gb", str(gpu_vram_gb),
                 "--compare", "both",
                 "--limit", "3",
                 "--horizon_depth", str(hd),
@@ -82,7 +82,7 @@ def main() -> int:
             "swarm", "bench",
             "--benchmark", "code_math_mix",
             "--agents_file", str(repo_root / agents_fast),
-            "--gpu_vram_gb", "8",
+            "--gpu_vram_gb", str(gpu_vram_gb),
             "--lambda_switch", str(lam_sw),
             "--compare", "both",
             "--limit", "4",
@@ -96,7 +96,7 @@ def main() -> int:
             "swarm", "bench",
             "--benchmark", "code_math_mix",
             "--agents_file", str(repo_root / agents_fast),
-            "--gpu_vram_gb", "8",
+            "--gpu_vram_gb", str(gpu_vram_gb),
             "--lambda_switch", "0.5",
             "--compare", "both",
             "--limit", "4",
@@ -107,12 +107,12 @@ def main() -> int:
     # --- AgenticBench (if available) ---
     try:
         print("\n=== AgenticBench ===")
-        out = root_dir / "agentic_bench" / "vram16_hd2"
+        out = root_dir / "agentic_bench" / f"vram{gpu_vram_gb}_hd2"
         _run([
             "swarm", "bench",
             "--benchmark", "agentic_bench",
             "--agents_file", str(repo_root / agents_heavy),
-            "--gpu_vram_gb", "16",
+            "--gpu_vram_gb", str(gpu_vram_gb),
             "--compare", "both",
             "--limit", "1",
             "--horizon_depth", "2",
