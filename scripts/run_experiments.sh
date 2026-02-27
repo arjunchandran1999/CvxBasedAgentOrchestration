@@ -5,7 +5,7 @@
 # Full sweep (all benchmarks, timestamped): python scripts/run_full_sweep.py
 # Creates runs/<timestamp>_full_sweep/ with meta_report.json (Pareto metrics).
 
-set -e
+set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p experiments runs
 
@@ -50,7 +50,7 @@ echo "=== Exp 6: Literature-style routing suite (multi-benchmark, multi-seed) ==
 # a diverse benchmark mix and compare routers to single-model baselines.
 #
 # Benchmarks available in this repo:
-#   boolq, squad, xsum, arc, gsm8k, humaneval, mbpp, workflowbench, code_math_mix, agentic_bench
+#   workflowbench, code_math_mix, agentic_bench
 #
 # We use a 2-model pool (strong+weak) to match common router paper setups.
 PAIR_AGENTS="configs/agents_pair_phi4_gemma2.json"
@@ -62,30 +62,22 @@ for seed in 0 1 2; do
 
   # Router comparison (LP vs LLM) on a mixed suite
   swarm bench \
-    --benchmark boolq --benchmark squad --benchmark xsum --benchmark arc_challenge --benchmark gsm8k \
+    --benchmark workflowbench --benchmark code_math_mix --benchmark agentic_bench \
     --agents_file "$PAIR_AGENTS" \
     --gpu_vram_gb 48 --compare both --limit 20 --seed "$seed" \
     --mix interleave --output_dir "experiments/exp6_paper_suite/static/seed${seed}" \
     --estimator_tag static
 
-  # Code tasks (optional: enable code execution for stricter scoring)
-  swarm bench \
-    --benchmark humaneval --benchmark mbpp \
-    --agents_file "$PAIR_AGENTS" \
-    --gpu_vram_gb 48 --compare both --limit 10 --seed "$seed" \
-    --mix interleave --code_eval --output_dir "experiments/exp6_paper_suite/static/seed${seed}_code" \
-    --estimator_tag static
-
   # Single-model baselines (always-strong vs always-weak)
   swarm bench \
-    --benchmark boolq --benchmark squad --benchmark xsum --benchmark arc_challenge --benchmark gsm8k \
+    --benchmark workflowbench --benchmark code_math_mix --benchmark agentic_bench \
     --agents_file "$STRONG_ONLY" \
     --gpu_vram_gb 48 --compare lp --limit 20 --seed "$seed" \
     --mix interleave --output_dir "experiments/exp6_paper_suite/baselines_strong/seed${seed}" \
     --estimator_tag static
 
   swarm bench \
-    --benchmark boolq --benchmark squad --benchmark xsum --benchmark arc_challenge --benchmark gsm8k \
+    --benchmark workflowbench --benchmark code_math_mix --benchmark agentic_bench \
     --agents_file "$WEAK_ONLY" \
     --gpu_vram_gb 48 --compare lp --limit 20 --seed "$seed" \
     --mix interleave --output_dir "experiments/exp6_paper_suite/baselines_weak/seed${seed}" \
@@ -131,7 +123,7 @@ echo "=== Exp T4: Literature-style routing suite (trained+frozen, multi-benchmar
 for seed in 0 1 2; do
   echo "  seed=$seed"
   swarm bench \
-    --benchmark boolq --benchmark squad --benchmark xsum --benchmark arc_challenge --benchmark gsm8k \
+    --benchmark workflowbench --benchmark code_math_mix --benchmark agentic_bench \
     --agents_file "$PAIR_AGENTS" \
     --gpu_vram_gb 48 --compare both --limit 20 --seed "$seed" \
     --mix interleave --output_dir "experiments/expT4_paper_suite_trained/seed${seed}" \
@@ -139,9 +131,8 @@ for seed in 0 1 2; do
 done
 
 echo "=== Exp 7: ALL benchmarks battery (static) ==="
-# Runs all registered benchmarks to avoid cherry-picking. Some are DAG (workflowbench/agentic_bench),
-# some are single-shot (boolq/squad/xsum/arc_challenge/gsm8k/humaneval/mbpp), and code benchmarks can use --code_eval.
-ALL_BENCHMARKS=(boolq squad xsum arc_challenge gsm8k humaneval mbpp workflowbench code_math_mix agentic_bench)
+# Runs all registered benchmarks to avoid cherry-picking.
+ALL_BENCHMARKS=(workflowbench code_math_mix agentic_bench)
 for seed in 0 1 2; do
   echo "  seed=$seed"
   for b in "${ALL_BENCHMARKS[@]}"; do
@@ -155,14 +146,10 @@ for seed in 0 1 2; do
           --estimator_tag static
       done
     else
-      EXTRA=()
-      if [[ "$b" == "humaneval" || "$b" == "mbpp" ]]; then
-        EXTRA=(--code_eval)
-      fi
       swarm bench --benchmark "$b" --agents_file "$PAIR_AGENTS" \
         --gpu_vram_gb 48 --compare both --limit 20 --seed "$seed" \
         --mix interleave --output_dir "experiments/exp7_all_benchmarks/static/${b}/seed${seed}" \
-        "${EXTRA[@]}" --estimator_tag static
+        --estimator_tag static
     fi
   done
 done
@@ -187,26 +174,21 @@ for seed in 0 1 2; do
     if [[ "$ab" == "quality_only" ]]; then LT=0.0; LS=0.0; fi
     if [[ "$ab" == "no_vram_binding" ]]; then VR=1000000; fi
 
-    # Evaluate on representative tasks: one QA (gsm8k), one extraction (squad), one summarize (xsum),
-    # one code (humaneval), and one DAG (workflowbench).
-    swarm bench --benchmark gsm8k --benchmark squad --benchmark xsum \
+    # Evaluate shared NLP/code mix on supported aggregate benchmark.
+    swarm bench --benchmark code_math_mix \
       --agents_file "$PAIR_AGENTS" --gpu_vram_gb "$VR" --compare both --limit 30 --seed "$seed" \
       --lambda_token "$LT" --lambda_switch "$LS" --mix interleave \
-      --output_dir "experiments/exp8_ablations/static/seed${seed}/${ab}/nlp" \
+      --output_dir "experiments/exp8_ablations/static/seed${seed}/${ab}/code_math_mix" \
       --estimator_tag static
 
-    swarm bench --benchmark humaneval \
-      --agents_file "$PAIR_AGENTS" --gpu_vram_gb "$VR" --compare both --limit 15 --seed "$seed" \
-      --lambda_token "$LT" --lambda_switch "$LS" --mix interleave --code_eval \
-      --output_dir "experiments/exp8_ablations/static/seed${seed}/${ab}/code" \
-      --estimator_tag static
-
-    for hd in 0 1 3; do
-      swarm bench --benchmark workflowbench --agents_file configs/agents_heavy.json \
-        --gpu_vram_gb "$VR" --compare both --limit 10 --seed "$seed" \
-        --lambda_token "$LT" --lambda_switch "$LS" --horizon_depth "$hd" \
-        --output_dir "experiments/exp8_ablations/static/seed${seed}/${ab}/workflowbench_hd${hd}" \
-        --estimator_tag static
+    for dag_benchmark in workflowbench agentic_bench; do
+      for hd in 0 1 3; do
+        swarm bench --benchmark "$dag_benchmark" --agents_file configs/agents_heavy.json \
+          --gpu_vram_gb "$VR" --compare both --limit 10 --seed "$seed" \
+          --lambda_token "$LT" --lambda_switch "$LS" --horizon_depth "$hd" \
+          --output_dir "experiments/exp8_ablations/static/seed${seed}/${ab}/${dag_benchmark}_hd${hd}" \
+          --estimator_tag static
+      done
     done
   done
 done
@@ -224,14 +206,10 @@ for seed in 0 1 2; do
           --estimator_in "$ESTIMATOR_STATE" --freeze_estimator --estimator_tag trained
       done
     else
-      EXTRA=()
-      if [[ "$b" == "humaneval" || "$b" == "mbpp" ]]; then
-        EXTRA=(--code_eval)
-      fi
       swarm bench --benchmark "$b" --agents_file "$PAIR_AGENTS" \
         --gpu_vram_gb 48 --compare both --limit 20 --seed "$seed" \
         --mix interleave --output_dir "experiments/expT5_all_benchmarks_trained/${b}/seed${seed}" \
-        "${EXTRA[@]}" --estimator_in "$ESTIMATOR_STATE" --freeze_estimator --estimator_tag trained
+        --estimator_in "$ESTIMATOR_STATE" --freeze_estimator --estimator_tag trained
     fi
   done
 done
