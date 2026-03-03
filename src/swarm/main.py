@@ -25,7 +25,7 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--job_id_prefix", default="job", help="Job id prefix for batch runs")
     run.add_argument("--run_id", default=None, help="Run id (defaults to timestamp)")
 
-    run.add_argument("--routing", choices=["lp", "llm"], default="llm", help="Routing mode (lp=CVXPY, llm=planner)")
+    run.add_argument("--routing", choices=["lp", "llm", "pref_router", "random"], default="llm", help="Routing mode (lp=CVXPY, llm=planner, pref_router=learned router, random=baseline)")
     run.add_argument("--lambda_token", type=float, default=0.5)
     run.add_argument("--lambda_switch", type=float, default=0.2)
     run.add_argument(
@@ -54,6 +54,8 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--estimator_tag", default="static", help="Tag recorded for reporting (e.g. static, trained)")
 
     run.add_argument("--runs_dir", default="runs", help="Base output dir for telemetry")
+    run.add_argument("--router_model", default=None, help="For pref_router: path to trained router .pkl")
+    run.add_argument("--router_tau", type=float, default=0.5, help="For pref_router: threshold tau (route to strong if p>=tau)")
 
     models = sub.add_parser("models", help="List/ensure Ollama models")
     models.add_argument("--ollama_base_url", default="http://localhost:11434")
@@ -71,7 +73,7 @@ def _build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--data_dir", default=str(Path.home() / ".cache" / "swarm_data"), help="External cache dir for datasets")
     bench.add_argument("--limit", type=int, default=20, help="Examples per benchmark")
     bench.add_argument("--seed", type=int, default=0)
-    bench.add_argument("--compare", choices=["lp", "llm", "both"], default="both", help="Run routing lp/llm or both")
+    bench.add_argument("--compare", choices=["lp", "llm", "pref_router", "random", "both", "all"], default="both", help="Run routing mode(s)")
     bench.add_argument("--lambda_token", type=float, default=0.5)
     bench.add_argument("--lambda_switch", type=float, default=0.2)
     bench.add_argument("--gpu_vram_gb", type=float, default=0.0, help="If <=0, auto-detect VRAM when possible")
@@ -94,6 +96,10 @@ def _build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--estimator_out", default=None, help="Path to write estimator state JSON after bench (use {mode} to avoid clobber)")
     bench.add_argument("--freeze_estimator", action="store_true", help="Disable online estimator updates during the bench")
     bench.add_argument("--estimator_tag", default="static", help="Tag recorded for reporting (e.g. static, trained)")
+    bench.add_argument("--mtbench_judge", action="store_true", help="For mt_bench: run local pairwise judging at report time (extra Ollama calls)")
+    bench.add_argument("--mtbench_judge_model", default="llama3.1:8b", help="Ollama model tag for mt_bench pairwise judge")
+    bench.add_argument("--router_model", default=None, help="For pref_router: path to trained router .pkl")
+    bench.add_argument("--router_tau", type=float, default=0.5, help="For pref_router: threshold tau")
 
     exp = sub.add_parser("experiment", help="Run benchmark sweeps (lambda_switch, VRAM) and suites")
     exp.add_argument("--suite", choices=["workflow_sweep", "code_math_sweep"], default=None)
@@ -124,6 +130,19 @@ def _build_parser() -> argparse.ArgumentParser:
     exp.add_argument("--estimator_in", default=None, help="Path to estimator state JSON to load for all sweep runs")
     exp.add_argument("--freeze_estimator", action="store_true", help="Disable online estimator updates during sweep runs")
     exp.add_argument("--estimator_tag", default="static", help="Tag recorded for reporting (e.g. static, trained)")
+
+    train_router = sub.add_parser("train-router", help="Train a preference-data router (RouteLLM-style baseline)")
+    train_router.add_argument("--benchmark", required=True, help="Benchmark to sample prompts from (e.g. gsm8k, boolq, mmlu)")
+    train_router.add_argument("--data_dir", default=str(Path.home() / ".cache" / "swarm_data"))
+    train_router.add_argument("--limit", type=int, default=200)
+    train_router.add_argument("--seed", type=int, default=0)
+    train_router.add_argument("--strong_model", default="phi4:14b")
+    train_router.add_argument("--weak_model", default="gemma2:2b")
+    train_router.add_argument("--judge_model", default="llama3.1:8b")
+    train_router.add_argument("--ollama_base_url", default="http://localhost:11434")
+    train_router.add_argument("--out_dir", default="experiments/router_training")
+    train_router.add_argument("--embed", choices=["tfidf", "sbert"], default="tfidf", help="Feature type for router model")
+    train_router.add_argument("--out_model", default="router.pkl", help="Output model filename")
 
     return p
 
@@ -179,6 +198,10 @@ async def _run(args: argparse.Namespace) -> int:
         judge_model=args.judge_model,
         planner_timeout_s=args.planner_timeout_s,
     )
+    if args.routing == "pref_router":
+        if not getattr(args, "router_model", None):
+            raise SystemExit("--router_model is required for --routing pref_router")
+        orch.configure_pref_router(router_model_path=str(args.router_model), tau=float(getattr(args, "router_tau", 0.5)))
 
     summaries = []
     for idx, q in enumerate(queries, start=1):
@@ -271,6 +294,10 @@ def main() -> None:
                 estimator_state_out=getattr(args, "estimator_out", None),
                 estimator_updates=not bool(getattr(args, "freeze_estimator", False)),
                 estimator_tag=getattr(args, "estimator_tag", "static"),
+                mtbench_judge=bool(getattr(args, "mtbench_judge", False)),
+                mtbench_judge_model=str(getattr(args, "mtbench_judge_model", "llama3.1:8b")),
+                router_model_path=getattr(args, "router_model", None),
+                router_tau=float(getattr(args, "router_tau", 0.5)),
             )
             return await run_bench(cfg, console=console)
 
@@ -321,4 +348,52 @@ def main() -> None:
             return await run_experiment(cfg, console=console)
 
         raise SystemExit(asyncio.run(_exp()))
+
+    if args.command == "train-router":
+        from pathlib import Path as _Path
+
+        from rich.console import Console as _Console
+
+        from .router_training.generate_preferences import generate_preferences_from_benchmark, write_preferences
+        from .router_training.train_router import train_sentence_transformer_logreg, train_tfidf_logreg
+
+        console = _Console()
+        out_dir = _Path(args.out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        prefs_path = out_dir / "preferences.jsonl"
+        model_path = out_dir / str(args.out_model)
+
+        console.print(f"[bold]Generating preferences[/bold] -> {prefs_path}")
+        prefs = generate_preferences_from_benchmark(
+            benchmark=str(args.benchmark),
+            data_dir=str(args.data_dir),
+            limit=int(args.limit),
+            seed=int(args.seed),
+            strong_model=str(args.strong_model),
+            weak_model=str(args.weak_model),
+            judge_model=str(args.judge_model),
+            ollama_base_url=str(args.ollama_base_url),
+        )
+        write_preferences(prefs_path, prefs)
+
+        prompts = [p.prompt for p in prefs]
+        labels = [1 if p.label == "a" else 0 for p in prefs]  # 1 => strong wins
+        console.print(f"[bold]Training router[/bold] embed={args.embed} -> {model_path}")
+        if str(args.embed) == "sbert":
+            model = train_sentence_transformer_logreg(
+                prompts=prompts,
+                labels_strong_wins=labels,
+                strong_model=str(args.strong_model),
+                weak_model=str(args.weak_model),
+            )
+        else:
+            model = train_tfidf_logreg(
+                prompts=prompts,
+                labels_strong_wins=labels,
+                strong_model=str(args.strong_model),
+                weak_model=str(args.weak_model),
+            )
+        model.save(model_path)
+        console.print(f"[bold]Done[/bold] router saved to {model_path}")
+        raise SystemExit(0)
 

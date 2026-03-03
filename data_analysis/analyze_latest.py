@@ -12,6 +12,8 @@ It writes an analysis bundle under data_analysis/out/<timestamp>/ including:
   - pareto.svg (score vs mean token cost, with Pareto frontier)
   - switch_cost.svg (score vs mean estimated switch cost)
   - vram.svg (score vs mean peak VRAM used)
+  - tau_curve.svg (optional, when router tau sweeps are detected)
+  - mtbench_winrates.svg (optional, when MT-Bench pairwise judgments are found)
 """
 
 from __future__ import annotations
@@ -99,6 +101,37 @@ class MultiModelMetrics:
     mean_models_swapped_in: float | None
 
 
+@dataclass(frozen=True)
+class TauSweepPoint:
+    benchmark: str
+    routing_mode: str
+    tau: float
+    mean_score: float | None
+    mean_token_cost: float | None
+    bench_dir: str
+
+
+def _extract_mtbench_pairwise(ctx: dict[str, Any]) -> list[dict[str, Any]]:
+    """
+    Extract MT-Bench pairwise summaries from any supported context shape:
+    - report context: {"mtbench_pairwise": {...}}
+    - index context: {"reports": [report_ctx, ...]}
+    """
+    out: list[dict[str, Any]] = []
+    direct = ctx.get("mtbench_pairwise")
+    if isinstance(direct, dict) and direct:
+        out.append(direct)
+    reports = ctx.get("reports")
+    if isinstance(reports, list):
+        for r in reports:
+            if not isinstance(r, dict):
+                continue
+            mtp = r.get("mtbench_pairwise")
+            if isinstance(mtp, dict) and mtp:
+                out.append(mtp)
+    return out
+
+
 def _points_from_report(report_path: Path) -> tuple[list[ParetoPoint], dict[str, Any]]:
     """
     Returns (pareto_points, context).
@@ -147,6 +180,7 @@ def _points_from_report(report_path: Path) -> tuple[list[ParetoPoint], dict[str,
         "bench_config": bench_cfg,
         "modes": rep.get("modes") or {},
         "comparison_lp_vs_llm": rep.get("comparison_lp_vs_llm") or {},
+        "mtbench_pairwise": rep.get("mtbench_pairwise") or {},
     }
     return pts, ctx
 
@@ -433,6 +467,167 @@ def _svg_scatter(
     out_path.write_text("\n".join(parts), encoding="utf-8")
 
 
+def _extract_tau_sweep_points(points: list[ParetoPoint]) -> list[TauSweepPoint]:
+    out: list[TauSweepPoint] = []
+    # Prefer per-bench points; we’ll read tau from each point's bench_dir bench_config.json.
+    seen = set()
+    for p in points:
+        if not p.bench_dir:
+            continue
+        key = (p.bench_dir, p.benchmark_name, p.routing_mode)
+        if key in seen:
+            continue
+        seen.add(key)
+        bd = Path(p.bench_dir)
+        cfgp = bd / "bench_config.json"
+        tau = None
+        if cfgp.exists():
+            try:
+                cfg = _read_json(cfgp)
+                tau = _safe_float(cfg.get("router_tau"))
+            except Exception:
+                tau = None
+        if tau is None:
+            continue
+        out.append(
+            TauSweepPoint(
+                benchmark=p.benchmark_name,
+                routing_mode=p.routing_mode,
+                tau=float(tau),
+                mean_score=float(p.mean_score) if p.mean_score is not None else None,
+                mean_token_cost=float(p.mean_token_cost) if p.mean_token_cost is not None else None,
+                bench_dir=str(bd),
+            )
+        )
+    return out
+
+
+def _svg_tau_curve(points: list[TauSweepPoint], *, out_path: Path, title: str) -> None:
+    # Plot mean_score vs tau (one color per benchmark) and save as SVG.
+    if not points:
+        out_path.write_text(f"<svg xmlns='http://www.w3.org/2000/svg' width='800' height='120'><text x='10' y='40'>No tau sweep data found.</text></svg>\n", encoding="utf-8")
+        return
+    # group by benchmark
+    by: dict[str, list[TauSweepPoint]] = {}
+    for p in points:
+        by.setdefault(p.benchmark, []).append(p)
+    # simple colors
+    palette = ["#2563eb", "#f97316", "#16a34a", "#a855f7", "#0ea5e9", "#ef4444", "#64748b"]
+    keys = sorted(by.keys())
+    color = {k: palette[i % len(palette)] for i, k in enumerate(keys)}
+
+    W, H, m = 900, 560, 70
+    plot_w, plot_h = W - 2*m, H - 2*m
+    xmin, xmax = 0.0, 1.0
+    ys = [p.mean_score for p in points if p.mean_score is not None]
+    ymin, ymax = (min(ys), max(ys)) if ys else (0.0, 1.0)
+    if math.isclose(ymin, ymax):
+        ymax = ymin + 1.0
+
+    def sx(x: float) -> float:
+        return m + (x - xmin) / (xmax - xmin) * plot_w
+
+    def sy(y: float) -> float:
+        return m + plot_h - (y - ymin) / (ymax - ymin) * plot_h
+
+    parts = [
+        f"<svg xmlns='http://www.w3.org/2000/svg' width='{W}' height='{H}' viewBox='0 0 {W} {H}'>",
+        "<rect x='0' y='0' width='100%' height='100%' fill='white'/>",
+        f"<text x='{m}' y='28' font-size='18' font-family='sans-serif' fill='#111827'>{_escape(title)}</text>",
+        f"<line x1='{m}' y1='{m}' x2='{m}' y2='{m+plot_h}' stroke='#111827'/>",
+        f"<line x1='{m}' y1='{m+plot_h}' x2='{m+plot_w}' y2='{m+plot_h}' stroke='#111827'/>",
+        f"<text x='{m+plot_w/2:.1f}' y='{H-18}' font-size='14' font-family='sans-serif' fill='#111827' text-anchor='middle'>tau (0=always weak, 1=always strong)</text>",
+        f"<text x='18' y='{m+plot_h/2:.1f}' font-size='14' font-family='sans-serif' fill='#111827' text-anchor='middle' transform='rotate(-90 18 {m+plot_h/2:.1f})'>mean score</text>",
+    ]
+
+    # Lines per benchmark
+    for bn in keys:
+        pts = sorted([p for p in by[bn] if p.mean_score is not None], key=lambda p: p.tau)
+        if len(pts) < 2:
+            continue
+        poly = " ".join(f"{sx(p.tau):.1f},{sy(float(p.mean_score)):.1f}" for p in pts)
+        parts.append(f"<polyline points='{poly}' fill='none' stroke='{color[bn]}' stroke-width='2' opacity='0.9'/>")
+        for p in pts:
+            parts.append(f"<circle cx='{sx(p.tau):.1f}' cy='{sy(float(p.mean_score)):.1f}' r='4' fill='{color[bn]}' opacity='0.9'/>")
+
+    # Legend
+    y0 = m - 10
+    x0 = W - m - 240
+    parts.append(f"<rect x='{x0}' y='{y0}' width='230' height='{20+18*len(keys)}' fill='white' stroke='#e2e8f0'/>")
+    for i, bn in enumerate(keys):
+        yy = y0 + 18*(i+1)
+        parts.append(f"<rect x='{x0+10}' y='{yy-10}' width='12' height='12' fill='{color[bn]}'/>")
+        parts.append(f"<text x='{x0+28}' y='{yy}' font-family='sans-serif' font-size='12' fill='#111827'>{_escape(bn)}</text>")
+
+    parts.append("</svg>\n")
+    out_path.write_text("\n".join(parts), encoding="utf-8")
+
+
+def _svg_mtbench_winrates(rows: list[dict[str, Any]], *, out_path: Path, title: str) -> None:
+    if not rows:
+        out_path.write_text(
+            "<svg xmlns='http://www.w3.org/2000/svg' width='800' height='120'><text x='10' y='40'>No MT-Bench pairwise data found.</text></svg>\n",
+            encoding="utf-8",
+        )
+        return
+
+    wins_a = 0.0
+    wins_b = 0.0
+    ties = 0.0
+    n = 0.0
+    mode_a = str(rows[0].get("mode_a") or "mode_a")
+    mode_b = str(rows[0].get("mode_b") or "mode_b")
+    for r in rows:
+        w = r.get("wins")
+        if not isinstance(w, dict):
+            continue
+        a = _safe_float(w.get("a")) or 0.0
+        b = _safe_float(w.get("b")) or 0.0
+        t = _safe_float(w.get("tie")) or 0.0
+        wins_a += a
+        wins_b += b
+        ties += t
+        n += a + b + t
+    if n <= 0:
+        out_path.write_text(
+            "<svg xmlns='http://www.w3.org/2000/svg' width='800' height='120'><text x='10' y='40'>MT-Bench pairwise found but no judged examples.</text></svg>\n",
+            encoding="utf-8",
+        )
+        return
+
+    rates = [
+        (mode_a, wins_a / n, "#2563eb"),
+        (mode_b, wins_b / n, "#f97316"),
+        ("tie", ties / n, "#64748b"),
+    ]
+
+    W, H, m = 900, 420, 70
+    plot_w, plot_h = W - 2 * m, H - 2 * m
+    bar_w = plot_w / (len(rates) * 1.8)
+
+    parts = [
+        f"<svg xmlns='http://www.w3.org/2000/svg' width='{W}' height='{H}' viewBox='0 0 {W} {H}'>",
+        "<rect x='0' y='0' width='100%' height='100%' fill='white'/>",
+        f"<text x='{m}' y='28' font-size='18' font-family='sans-serif' fill='#111827'>{_escape(title)}</text>",
+        f"<line x1='{m}' y1='{m}' x2='{m}' y2='{m+plot_h}' stroke='#111827'/>",
+        f"<line x1='{m}' y1='{m+plot_h}' x2='{m+plot_w}' y2='{m+plot_h}' stroke='#111827'/>",
+        f"<text x='{m+plot_w/2:.1f}' y='{H-18}' font-size='14' font-family='sans-serif' fill='#111827' text-anchor='middle'>Outcome</text>",
+        f"<text x='18' y='{m+plot_h/2:.1f}' font-size='14' font-family='sans-serif' fill='#111827' text-anchor='middle' transform='rotate(-90 18 {m+plot_h/2:.1f})'>Rate</text>",
+    ]
+
+    for i, (name, rate, color) in enumerate(rates):
+        cx = m + (i + 0.5) * (plot_w / len(rates))
+        h = max(0.0, min(1.0, rate)) * plot_h
+        x = cx - bar_w / 2
+        y = m + plot_h - h
+        parts.append(f"<rect x='{x:.1f}' y='{y:.1f}' width='{bar_w:.1f}' height='{h:.1f}' fill='{color}' opacity='0.9'/>")
+        parts.append(f"<text x='{cx:.1f}' y='{m+plot_h+22:.1f}' font-size='12' font-family='sans-serif' fill='#111827' text-anchor='middle'>{_escape(name)}</text>")
+        parts.append(f"<text x='{cx:.1f}' y='{max(m+12, y-6):.1f}' font-size='11' font-family='monospace' fill='#111827' text-anchor='middle'>{rate:.3f}</text>")
+
+    parts.append("</svg>\n")
+    out_path.write_text("\n".join(parts), encoding="utf-8")
+
+
 def _escape(s: str) -> str:
     return (
         s.replace("&", "&amp;")
@@ -564,6 +759,8 @@ def _write_analysis_md(
     lines.append("- `pareto.svg`: score vs mean token cost (frontier dashed)")
     lines.append("- `switch_cost.svg`: score vs mean estimated switch cost")
     lines.append("- `vram.svg`: score vs mean peak VRAM used")
+    lines.append("- `tau_curve.svg`: score vs tau for `pref_router` sweeps (if detected)")
+    lines.append("- `mtbench_winrates.svg`: MT-Bench pairwise win rates (if detected)")
     lines.append("")
     lines.append("## Summary stats (by routing mode)")
     lines.append("")
@@ -597,6 +794,41 @@ def _write_analysis_md(
     for w in weaknesses or ["Small sample sizes and limited benchmark diversity make it hard to claim generality."]:
         lines.append(f"- {w}")
     lines.append("")
+    mtp_rows = _extract_mtbench_pairwise(ctx)
+    if mtp_rows:
+        wins_a = 0.0
+        wins_b = 0.0
+        ties = 0.0
+        n = 0.0
+        mode_a = str(mtp_rows[0].get("mode_a") or "mode_a")
+        mode_b = str(mtp_rows[0].get("mode_b") or "mode_b")
+        judge_model = str(mtp_rows[0].get("judge_model") or "unknown")
+        for r in mtp_rows:
+            w = r.get("wins")
+            if not isinstance(w, dict):
+                continue
+            a = _safe_float(w.get("a")) or 0.0
+            b = _safe_float(w.get("b")) or 0.0
+            t = _safe_float(w.get("tie")) or 0.0
+            wins_a += a
+            wins_b += b
+            ties += t
+            n += a + b + t
+        ra = (wins_a / n) if n > 0 else None
+        rb = (wins_b / n) if n > 0 else None
+        rt = (ties / n) if n > 0 else None
+        lines.append("## MT-Bench pairwise (local judge)")
+        lines.append("")
+        lines.append(f"- **rows_aggregated**: {len(mtp_rows)}")
+        lines.append(f"- **mode_a**: `{mode_a}`")
+        lines.append(f"- **mode_b**: `{mode_b}`")
+        lines.append(f"- **judge_model**: `{judge_model}`")
+        lines.append(f"- **n_judged_total**: {int(n)}")
+        lines.append(f"- **wins_total**: {{'a': {int(wins_a)}, 'b': {int(wins_b)}, 'tie': {int(ties)}}}")
+        lines.append(f"- **win_rate_a**: {_fmt(ra)}")
+        lines.append(f"- **win_rate_b**: {_fmt(rb)}")
+        lines.append(f"- **tie_rate**: {_fmt(rt)}")
+        lines.append("")
     lines.append("## Experiments to run next (to back the method more conclusively)")
     lines.append("")
     for e in next_exps:
@@ -731,6 +963,19 @@ def main() -> int:
     )
 
     _write_analysis_md(out_dir=out_dir, input_path=input_path, points=points, ctx=ctx, frontier_indices=frontier_idx)
+
+    tau_pts = _extract_tau_sweep_points(points)
+    # Only write this plot if we detect any tau sweeps in the selected batch.
+    if tau_pts:
+        _svg_tau_curve(tau_pts, out_path=out_dir / "tau_curve.svg", title="Tau sweep: mean score vs tau")
+
+    mt_rows = _extract_mtbench_pairwise(ctx)
+    if mt_rows:
+        _svg_mtbench_winrates(
+            mt_rows,
+            out_path=out_dir / "mtbench_winrates.svg",
+            title="MT-Bench pairwise win rates (aggregated)",
+        )
 
     print(f"Wrote analysis bundle to: {out_dir}")
     print(f"- {out_dir / 'analysis.md'}")

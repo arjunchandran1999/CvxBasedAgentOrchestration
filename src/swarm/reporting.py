@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .benchmarks.registry import BenchmarkExample, ensure_default_benchmarks_loaded, get as get_bench
+from .mtbench_judge import judge_pairwise_sync
 
 
 def _read_json(path: Path) -> Any:
@@ -101,7 +102,15 @@ def _aggregate_subtask_metrics_per_job(subtask_events: list[dict[str, Any]]) -> 
     return by_job
 
 
-def aggregate_reports(*, bench_dir: Path, run_dirs: dict[str, Path], benchmarks: list[str]) -> dict[str, Any]:
+def aggregate_reports(
+    *,
+    bench_dir: Path,
+    run_dirs: dict[str, Path],
+    benchmarks: list[str],
+    mtbench_judge: bool = False,
+    mtbench_judge_model: str = "llama3.1:8b",
+    ollama_base_url: str = "http://localhost:11434",
+) -> dict[str, Any]:
     """
     Aggregates ON/OFF benchmark scores + telemetry into JSON.
     Also writes a per-example CSV to `bench_dir/report.csv`.
@@ -437,6 +446,60 @@ def aggregate_reports(*, bench_dir: Path, run_dirs: dict[str, Path], benchmarks:
         comparison["total_subtasks_compared"] = total_subtasks
 
         report["comparison_lp_vs_llm"] = comparison
+
+    # Optional: MT-Bench pairwise judging between exactly two modes (local judge).
+    # This is gated because it introduces additional model calls at report time.
+    if mtbench_judge:
+        for bench_name in set(e.benchmark for e in examples):
+            if bench_name != "mt_bench":
+                continue
+            modes = sorted(run_dirs.keys())
+            if len(modes) != 2:
+                continue
+            mA, mB = modes[0], modes[1]
+
+            # Load artifacts for both modes.
+            arts: dict[str, dict[str, Any]] = {}
+            for m in [mA, mB]:
+                arts[m] = {}
+                artifacts_dir = run_dirs[m] / "artifacts"
+                for idx, ex in enumerate(examples, start=1):
+                    job_id = f"{ex.benchmark}-{idx}"
+                    p = artifacts_dir / f"{job_id}.json"
+                    if p.exists():
+                        arts[m][job_id] = _read_json(p)
+
+            wins = {"a": 0, "b": 0, "tie": 0}
+            judged = 0
+            for idx, ex in enumerate(examples, start=1):
+                job_id = f"{ex.benchmark}-{idx}"
+                a_art = arts[mA].get(job_id) or {}
+                b_art = arts[mB].get(job_id) or {}
+                a_ans = str(a_art.get("final_answer") or "")
+                b_ans = str(b_art.get("final_answer") or "")
+                if not a_ans.strip() or not b_ans.strip():
+                    continue
+
+                r = judge_pairwise_sync(
+                    base_url=ollama_base_url,
+                    model=mtbench_judge_model,
+                    prompt=str(ex.query),
+                    answer_a=a_ans,
+                    answer_b=b_ans,
+                )
+                wins[r.winner] += 1
+                judged += 1
+
+            report["mtbench_pairwise"] = {
+                "mode_a": mA,
+                "mode_b": mB,
+                "judge_model": mtbench_judge_model,
+                "n_judged": judged,
+                "wins": wins,
+                "win_rate_a": (wins["a"] / judged) if judged else None,
+                "win_rate_b": (wins["b"] / judged) if judged else None,
+                "tie_rate": (wins["tie"] / judged) if judged else None,
+            }
 
     # Pareto frontier aggregates and data
     bench_config: dict[str, Any] = {}

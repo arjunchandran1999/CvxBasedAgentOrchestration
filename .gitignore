@@ -23,7 +23,8 @@ htmlcov/
 # Local secrets
 .env
 .env.*
-
+data/
+data_analysis
 # Generated runs / telemetry (project defaults)
 runs/
 bench_runs/

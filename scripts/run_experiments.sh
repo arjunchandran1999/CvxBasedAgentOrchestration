@@ -98,6 +98,16 @@ swarm bench --benchmark workflowbench --agents_file configs/agents_heavy.json \
 
 echo "Wrote trained estimator state to: ${ESTIMATOR_STATE}"
 
+echo "=== Phase 1b: Train preference router baseline (RouteLLM-style) ==="
+# Trains a strong-vs-weak router on in-domain preference labels (local judge).
+# Requires: pip install -e '.[router]'
+ROUTER_DIR="experiments/router_training"
+ROUTER_MODEL="${ROUTER_DIR}/router.pkl"
+mkdir -p "$ROUTER_DIR"
+swarm train-router --benchmark gsm8k --limit 200 --seed 0 \
+  --strong_model phi4:14b --weak_model gemma2:2b --judge_model llama3.1:8b \
+  --out_dir "$ROUTER_DIR" --embed tfidf --out_model "$(basename "$ROUTER_MODEL")"
+
 echo "=== Phase 2: Rerun key experiments with trained estimators (frozen) ==="
 
 echo "=== Exp T1: VRAM stress (trained, agents_heavy, gpu=8) ==="
@@ -128,6 +138,21 @@ for seed in 0 1 2; do
     --gpu_vram_gb 48 --compare both --limit 20 --seed "$seed" \
     --mix interleave --output_dir "experiments/expT4_paper_suite_trained/seed${seed}" \
     --estimator_in "$ESTIMATOR_STATE" --freeze_estimator --estimator_tag trained
+done
+
+echo "=== Exp 9: RouteLLM-style cost/quality curve via tau sweep (pref_router) ==="
+# We sweep tau to change how often we call the strong model.
+for seed in 0 1 2; do
+  for tau in 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0; do
+    echo "  seed=$seed tau=$tau"
+    swarm bench \
+      --benchmark boolq --benchmark gsm8k --benchmark squad --benchmark xsum --benchmark arc_challenge \
+      --agents_file "$PAIR_AGENTS" \
+      --gpu_vram_gb 48 --compare pref_router --limit 30 --seed "$seed" --mix interleave \
+      --router_model "$ROUTER_MODEL" --router_tau "$tau" \
+      --output_dir "experiments/exp9_tau_sweep/static/seed${seed}/tau${tau}" \
+      --estimator_tag static
+  done
 done
 
 echo "=== Exp 7: ALL benchmarks battery (static) ==="

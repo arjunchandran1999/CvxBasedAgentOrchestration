@@ -47,4 +47,6 @@ def ensure_default_benchmarks_loaded() -> None:
     from . import workflowbench  # noqa: F401
     from . import code_math_mix  # noqa: F401
     from . import agentic_bench  # noqa: F401
+    from . import mmlu  # noqa: F401
+    from . import mt_bench  # noqa: F401
 

@@ -11,6 +11,8 @@ from .evaluator import Evaluation, evaluate
 from .ollama_client import OllamaClient
 from .optimizer import OptimizerConfig, SwarmOptimizer
 from .planner_router import llm_assign
+from .pref_router import PrefRouterConfig, route_random, route_with_trained_model
+from .router_training.train_router import TrainedRouterModel
 from .routing import Assignment, RoutingResult
 from .tasks import Subtask, decompose
 from .task_graph import TaskDAG, get_horizon_nodes, get_layers, node_to_subtask, topological_sort
@@ -126,7 +128,7 @@ class SwarmOrchestrator:
         *,
         run_id: str,
         run_dir: Path,
-        routing_mode: Literal["lp", "llm"],
+        routing_mode: Literal["lp", "llm", "pref_router", "random"],
         lambda_token: float,
         lambda_switch: float,
         gpu_vram_gb: float,
@@ -147,7 +149,7 @@ class SwarmOrchestrator:
     ) -> None:
         self.run_id = run_id
         self.run_dir = run_dir
-        self.routing_mode: Literal["lp", "llm"] = routing_mode
+        self.routing_mode: Literal["lp", "llm", "pref_router", "random"] = routing_mode
         self.lambda_token = float(lambda_token)
         self.lambda_switch = float(lambda_switch)
         self.gpu_spec: GpuSpec | None = detect_gpu()
@@ -193,6 +195,12 @@ class SwarmOrchestrator:
         )
 
         self.loaded_models: set[str] = set()
+        self.pref_router_model_path: str | None = None
+        self.pref_router_tau: float = 0.5
+
+    def configure_pref_router(self, *, router_model_path: str, tau: float = 0.5) -> None:
+        self.pref_router_model_path = str(router_model_path)
+        self.pref_router_tau = float(tau)
 
     def save_estimator_state(self, path: str | None = None) -> None:
         p = path or self.estimator_state_out
@@ -282,6 +290,32 @@ class SwarmOrchestrator:
                 estimator=self.estimator,
                 gpu_vram_gb=self.gpu_vram_gb,
                 loaded_models=loaded_before,
+            )
+        elif self.routing_mode == "pref_router":
+            if not self.pref_router_model_path:
+                raise ValueError("pref_router requires router model path (configure_pref_router).")
+            model = TrainedRouterModel.load(Path(self.pref_router_model_path))
+            routing = route_with_trained_model(
+                subtasks=subtasks,
+                agents=self.agents,
+                estimator=self.estimator,
+                router_model=model,
+                cfg=PrefRouterConfig(tau=self.pref_router_tau),
+                gpu_vram_gb=self.gpu_vram_gb,
+                loaded_models=loaded_before,
+                token_scale=self.token_scale,
+                switch_t_scale_ms=self.switch_t_scale_ms,
+            )
+        elif self.routing_mode == "random":
+            routing = route_random(
+                subtasks=subtasks,
+                agents=self.agents,
+                estimator=self.estimator,
+                gpu_vram_gb=self.gpu_vram_gb,
+                loaded_models=loaded_before,
+                token_scale=self.token_scale,
+                switch_t_scale_ms=self.switch_t_scale_ms,
+                seed=0,
             )
         else:
             routing = await llm_assign(

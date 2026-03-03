@@ -46,6 +46,10 @@ class BenchConfig:
     estimator_state_out: str | None = None
     estimator_updates: bool = True
     estimator_tag: str = "static"
+    mtbench_judge: bool = False
+    mtbench_judge_model: str = "llama3.1:8b"
+    router_model_path: str | None = None
+    router_tau: float = 0.5
 
 
 def _set_hf_cache(data_dir: str) -> None:
@@ -106,7 +110,12 @@ async def run_bench(cfg: BenchConfig, *, console: Console) -> int:
             console.print(f"[bold]Pulling missing models[/bold]: {missing}")
             mgr.pull_models_cli(missing)
 
-    modes = [cfg.compare] if cfg.compare != "both" else ["lp", "llm"]
+    if cfg.compare == "both":
+        modes = ["lp", "llm"]
+    elif cfg.compare == "all":
+        modes = ["lp", "llm", "pref_router", "random"]
+    else:
+        modes = [cfg.compare]
     run_dirs: dict[str, Path] = {}
 
     for mode in modes:
@@ -143,6 +152,11 @@ async def run_bench(cfg: BenchConfig, *, console: Console) -> int:
             planner_timeout_s=cfg.planner_timeout_s,
             horizon_depth=cfg.horizon_depth,
         )
+        if mode == "pref_router":
+            # Router model path must be passed via bench config.
+            if not getattr(cfg, "router_model_path", None):
+                raise SystemExit("pref_router requires BenchConfig.router_model_path")
+            orch.configure_pref_router(router_model_path=str(cfg.router_model_path), tau=float(getattr(cfg, "router_tau", 0.5)))
 
         for idx, ex in enumerate(all_examples, start=1):
             job_id = f"{ex.benchmark}-{idx}"
@@ -185,6 +199,9 @@ async def run_bench(cfg: BenchConfig, *, console: Console) -> int:
         bench_dir=bench_dir,
         run_dirs=run_dirs,
         benchmarks=cfg.benchmarks,
+        mtbench_judge=bool(cfg.mtbench_judge),
+        mtbench_judge_model=str(cfg.mtbench_judge_model),
+        ollama_base_url=str(cfg.ollama_base_url),
     )
     (bench_dir / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     console.print(f"Wrote report to {bench_dir / 'report.json'}")

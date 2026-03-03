@@ -19,6 +19,17 @@ dependencies = [
   "rouge-score>=0.1.2",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-asyncio>=0.23.0",
+]
+router = [
+  "scikit-learn>=1.4.0",
+  "sentence-transformers>=2.6.0",
+  # torch is required by sentence-transformers; keep it implicit to avoid pinning
+]
+
 [project.scripts]
 swarm = "swarm.main:main"
 
