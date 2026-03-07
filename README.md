@@ -1,6 +1,34 @@
 # Ollama Swarm Router (GPU-aware)
 
-End-to-end MVP to compare exactly two routing modes:
+This project aims to simplify LLM agent orchestration by replacing many expensive
+LLM-based routing decisions with fast linear optimization calls. Instead of asking
+an LLM planner to assign every subtask, we formulate routing as a constrained LP
+that balances:
+
+- expected task quality,
+- token cost,
+- model switching overhead, and
+- GPU VRAM limits.
+
+The result is a practical controller that tries to match model capability and
+cost to task complexity and requirements, while keeping assignment latency and
+decision cost low.
+
+The design is inspired by two lines of prior work:
+
+- **Robot swarm orchestration via optimization**: like multi-robot task allocation,
+  we use explicit objectives and constraints to coordinate specialized workers
+  under resource limits.
+- **LLM routing research** (cost-quality tradeoff methods): we adopt the same
+  framing of strong-vs-weak model selection, but apply deterministic optimization
+  at orchestration time.
+
+What is new here is the combination: an optimization-native orchestration layer
+for local LLM swarms that can be directly compared against an LLM planner baseline
+under the same information and constraints, with telemetry and benchmark tooling
+to measure quality/cost/switching tradeoffs end to end.
+
+End-to-end MVP supports these routing modes:
 
 - **`lp`**: CVXPY LP routing with token + VRAM + model-switching penalty.
 - **`llm`**: planner LLM chooses routing from the same information (no CVXPY).
